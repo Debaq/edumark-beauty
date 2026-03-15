@@ -1,0 +1,44 @@
+export type ContentMode = 'html' | 'presentation' | 'book'
+
+export type SlideTemplate = 'cover' | 'content' | 'two-columns' | 'image-text' | 'full-media'
+
+export interface PageConfig {
+  /** Paper size name */
+  paperSize: 'a4' | 'letter' | 'legal' | 'custom'
+  /** Width in mm */
+  width: number
+  /** Height in mm */
+  height: number
+  /** Margins in mm */
+  margins: {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+}
+
+export interface SlideConfig {
+  /** Aspect ratio */
+  ratio: '16:9' | '4:3' | 'custom'
+  /** Custom width (only when ratio is 'custom') */
+  customWidth?: number
+  /** Custom height (only when ratio is 'custom') */
+  customHeight?: number
+}
+
+export interface Slide {
+  /** Raw markdown source for this slide */
+  source: string
+  /** Rendered HTML */
+  html: string
+  /** Auto-detected or manually set template */
+  template: SlideTemplate
+}
+
+/** Paper size presets in mm */
+export const PAPER_SIZES: Record<string, { width: number; height: number }> = {
+  a4: { width: 210, height: 297 },
+  letter: { width: 216, height: 279 },
+  legal: { width: 216, height: 356 },
+}

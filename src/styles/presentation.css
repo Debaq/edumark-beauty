@@ -1,0 +1,231 @@
+/* ========================================
+   Presentation mode — slide templates
+   ======================================== */
+
+.edm-slide-viewport {
+  container-type: inline-size;
+  overflow: hidden;
+  position: relative;
+}
+
+.edm-slide {
+  padding: 5cqi;
+  box-sizing: border-box;
+  /* Prevent children from overflowing and overlapping */
+  overflow: hidden;
+}
+
+/* All direct children of slides: no negative margins, contained */
+.edm-slide > *:not(style):not(link) {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Ensure cards/blocks don't overlap */
+.edm-slide .edm-card {
+  overflow: hidden;
+}
+
+/* Images contained */
+.edm-slide img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* SVGs must scale within the slide */
+.edm-slide svg {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  width: auto;
+}
+
+.edm-slide .edm-diagram-svg,
+.edm-slide .edm-diagram-render,
+.edm-slide figure {
+  max-width: 100%;
+  max-height: 60cqi;
+  overflow: hidden;
+}
+
+.edm-slide .edm-diagram-svg svg {
+  max-width: 100% !important;
+  max-height: 55cqi;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* ---- Cover: centered, large title ---- */
+.edm-slide.edm-slide-cover {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.edm-slide.edm-slide-cover h1,
+.edm-slide.edm-slide-cover h2 {
+  font-size: 6cqi;
+  margin: 0;
+}
+
+.edm-slide.edm-slide-cover h3,
+.edm-slide.edm-slide-cover p {
+  font-size: 3cqi;
+  opacity: 0.7;
+}
+
+/* ---- Content: title top, body below ---- */
+.edm-slide.edm-slide-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3cqi;
+}
+
+.edm-slide.edm-slide-content h1,
+.edm-slide.edm-slide-content h2,
+.edm-slide.edm-slide-content h3 {
+  margin: 0;
+  font-size: 4.5cqi;
+}
+
+.edm-slide.edm-slide-content > *:not(h1):not(h2):not(h3):not(style):not(link) {
+  font-size: 2.8cqi;
+}
+
+/* ---- Two columns: CSS grid ---- */
+.edm-slide.edm-slide-two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4cqi;
+  align-content: start;
+}
+
+/* Title spans full width */
+.edm-slide.edm-slide-two-columns > h1,
+.edm-slide.edm-slide-two-columns > h2,
+.edm-slide.edm-slide-two-columns > h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 4.5cqi;
+}
+
+.edm-slide.edm-slide-two-columns > *:not(h1):not(h2):not(h3):not(style):not(link) {
+  font-size: 2.5cqi;
+}
+
+/* ---- Image + Text: 60/40 grid ---- */
+.edm-slide.edm-slide-image-text {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 4cqi;
+  align-items: center;
+}
+
+.edm-slide.edm-slide-image-text > h1,
+.edm-slide.edm-slide-image-text > h2,
+.edm-slide.edm-slide-image-text > h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 4cqi;
+}
+
+.edm-slide.edm-slide-image-text img,
+.edm-slide.edm-slide-image-text figure,
+.edm-slide.edm-slide-image-text .edm-diagram {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 1cqi;
+}
+
+.edm-slide.edm-slide-image-text > *:not(h1):not(h2):not(h3):not(img):not(figure):not(.edm-diagram):not(style):not(link) {
+  font-size: 2.5cqi;
+}
+
+/* ---- Full media: image/diagram fullscreen ---- */
+.edm-slide.edm-slide-full-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2cqi;
+}
+
+.edm-slide.edm-slide-full-media img,
+.edm-slide.edm-slide-full-media figure,
+.edm-slide.edm-slide-full-media .edm-diagram {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Hide max-width constraint inside slides */
+.edm-slide.edm-preview {
+  max-width: none;
+}
+
+/* ---- Hero inside slides (frontmatter cover) ---- */
+.edm-slide .edm-hero {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.edm-slide .edm-hero h1 {
+  font-size: 5cqi;
+  margin-bottom: 1.5cqi;
+}
+
+.edm-slide .edm-hero .edm-hero-meta {
+  font-size: 2cqi;
+}
+
+.edm-slide .edm-hero .edm-hero-badges {
+  font-size: 1.8cqi;
+  margin-bottom: 2cqi;
+}
+
+.edm-slide .edm-hero .edm-hero-topics {
+  font-size: 1.8cqi;
+  text-align: left;
+  margin-top: 2cqi;
+}
+
+.edm-slide .edm-hero .edm-hero-topics ul {
+  columns: 2;
+  column-gap: 3cqi;
+}
+
+/* In cover template, hide the standalone h1 after hero (redundant title) */
+.edm-slide.edm-slide-cover > .edm-hero + h1 {
+  display: none;
+}
+
+/* Lists inside slides */
+.edm-slide ul,
+.edm-slide ol {
+  font-size: inherit;
+  padding-left: 3cqi;
+}
+
+.edm-slide li {
+  margin-bottom: 1cqi;
+}
+
+/* Cards inside slides — smaller padding */
+.edm-slide .edm-card {
+  padding: 2cqi;
+  font-size: inherit;
+}
+
+/* Code inside slides */
+.edm-slide pre {
+  font-size: 2.2cqi;
+  padding: 2cqi;
+}

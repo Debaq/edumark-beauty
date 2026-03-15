@@ -1,15 +1,24 @@
 import {
   PanelLeftClose, PanelRightClose, Columns2,
   Download, Settings, FileText, RotateCcw, HelpCircle,
+  Monitor, Presentation, BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
+import { useContentModeStore } from '@/store/contentMode'
+import type { ContentMode } from '@/types/contentMode'
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ComponentType<{ size?: number }>; label: string }[] = [
   { mode: 'editor', icon: PanelLeftClose, label: 'Editor' },
   { mode: 'split', icon: Columns2, label: 'Dividido' },
   { mode: 'preview', icon: PanelRightClose, label: 'Vista previa' },
+]
+
+const CONTENT_MODES: { mode: ContentMode; icon: React.ComponentType<{ size?: number }>; label: string }[] = [
+  { mode: 'html', icon: Monitor, label: 'HTML' },
+  { mode: 'presentation', icon: Presentation, label: 'Presentacion' },
+  { mode: 'book', icon: BookOpen, label: 'Libro' },
 ]
 
 export function Toolbar() {
@@ -21,6 +30,8 @@ export function Toolbar() {
   const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
   const filename = useDocumentStore((s) => s.filename)
   const reset = useDocumentStore((s) => s.reset)
+  const contentMode = useContentModeStore((s) => s.contentMode)
+  const setContentMode = useContentModeStore((s) => s.setContentMode)
 
   return (
     <header className="h-12 bg-[var(--app-bg1)] border-b border-[var(--app-border)]
@@ -39,24 +50,49 @@ export function Toolbar() {
         )}
       </div>
 
-      {/* Centro: modos de vista */}
-      <div className="flex items-center gap-1 bg-[var(--app-bg)] rounded-lg p-0.5">
-        {VIEW_MODES.map(({ mode, icon: Icon, label }) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            title={label}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-              viewMode === mode
-                ? 'bg-[var(--app-accent)] text-white shadow-sm'
-                : 'text-[var(--app-fg2)] hover:text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]'
-            )}
-          >
-            <Icon size={14} />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
+      {/* Centro: modo de contenido + modos de vista */}
+      <div className="flex items-center gap-3">
+        {/* Content mode selector */}
+        <div className="flex items-center gap-1 bg-[var(--app-bg)] rounded-lg p-0.5">
+          {CONTENT_MODES.map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setContentMode(mode)}
+              title={label}
+              className={clsx(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all',
+                contentMode === mode
+                  ? 'bg-[var(--app-accent)]/20 text-[var(--app-accent)] shadow-sm'
+                  : 'text-[var(--app-fg3)] hover:text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]'
+              )}
+            >
+              <Icon size={14} />
+              <span className="hidden md:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-[var(--app-border)]" />
+
+        {/* View mode selector */}
+        <div className="flex items-center gap-1 bg-[var(--app-bg)] rounded-lg p-0.5">
+          {VIEW_MODES.map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              title={label}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+                viewMode === mode
+                  ? 'bg-[var(--app-accent)] text-white shadow-sm'
+                  : 'text-[var(--app-fg2)] hover:text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]'
+              )}
+            >
+              <Icon size={14} />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Derecha: acciones */}

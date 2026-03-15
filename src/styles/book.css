@@ -1,0 +1,85 @@
+/* ========================================
+   Book mode — paginated white pages
+   ======================================== */
+
+.edm-book-container {
+  background: #d1d5db;
+  padding: 32px 0;
+}
+
+.edm-book-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 0 16px;
+}
+
+.edm-book-page {
+  background: white;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 1px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Force white background and remove max-width/padding inside book pages */
+.edm-book-page .edm-preview {
+  max-width: none;
+  padding: 0;
+  background: white !important;
+}
+
+/* Page number */
+.edm-book-page-number {
+  position: absolute;
+  bottom: 12px;
+  right: 0;
+  left: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+  font-family: 'Inter', sans-serif;
+  pointer-events: none;
+}
+
+/* Subtle page edge effect — right side */
+.edm-book-page::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.04), rgba(0,0,0,0.08), rgba(0,0,0,0.04));
+}
+
+/* Subtle top fold effect */
+.edm-book-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, rgba(0,0,0,0.03), rgba(0,0,0,0.06), rgba(0,0,0,0.03));
+}
+
+/* Hero section in book mode: allow accent background on first page */
+.edm-book-page:first-child .edm-preview .edm-hero {
+  background: var(--t-accent, #3b82f6);
+  color: white;
+  border: none;
+}
+
+.edm-book-page:first-child .edm-preview .edm-hero h1 {
+  color: white;
+}
+
+.edm-book-page:first-child .edm-preview .edm-hero .edm-hero-subtitle,
+.edm-book-page:first-child .edm-preview .edm-hero .edm-hero-meta {
+  color: rgba(255, 255, 255, 0.85);
+}

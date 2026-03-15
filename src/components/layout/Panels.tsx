@@ -2,8 +2,11 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { Lock, Unlock } from 'lucide-react'
 import { useUIStore } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
+import { useContentModeStore } from '@/store/contentMode'
 import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
-import { Preview, type PreviewHandle } from '@/components/preview/Preview'
+import { PreviewRouter } from '@/components/preview/PreviewRouter'
+import type { PreviewHandle } from '@/components/preview/Preview'
+import { findSlideBoundaries } from '@/lib/slideParser'
 
 /** Extract heading line numbers from .edm source */
 function extractSourceHeadings(source: string): number[] {
@@ -54,14 +57,24 @@ export function Panels() {
   const viewMode = useUIStore((s) => s.viewMode)
   const scrollSync = useUIStore((s) => s.scrollSync)
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync)
-  const [splitPercent, setSplitPercent] = useState(50)
+  const contentMode = useContentModeStore((s) => s.contentMode)
+  const currentSlide = useContentModeStore((s) => s.currentSlide)
+  const setCurrentSlide = useContentModeStore((s) => s.setCurrentSlide)
+  const slides = useContentModeStore((s) => s.slides)
+  const [splitPercent, setSplitPercent] = useState(contentMode === 'presentation' ? 33 : 50)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
 
   const html = useDocumentStore((s) => s.html)
+  const source = useDocumentStore((s) => s.source)
   const editorRef = useRef<EdmEditorHandle>(null)
   const previewRef = useRef<PreviewHandle>(null)
   const isSyncing = useRef(false)
+
+  // Adjust split ratio when content mode changes
+  useEffect(() => {
+    setSplitPercent(contentMode === 'presentation' ? 33 : 50)
+  }, [contentMode])
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true
@@ -87,11 +100,10 @@ export function Panels() {
     document.addEventListener('mouseup', handleMouseUp)
   }, [])
 
-  // Heading-based scroll sync
+  // ── HTML mode: heading-based scroll sync ──
   useEffect(() => {
-    if (viewMode !== 'split' || !scrollSync) return
+    if (viewMode !== 'split' || !scrollSync || contentMode !== 'html') return
 
-    // Small delay to let the DOM settle after content changes
     const timer = setTimeout(() => {
       const editorScroller = editorRef.current?.getScroller()
       const previewScroller = previewRef.current?.getScroller()
@@ -99,7 +111,6 @@ export function Panels() {
 
       const editorView = editorRef.current?.getView?.()
 
-      // Build heading mapping
       const buildMap = () => {
         if (!editorView) return null
 
@@ -107,23 +118,18 @@ export function Panels() {
         const sourceLines = extractSourceHeadings(source)
         const previewHeadings = getPreviewHeadings(previewScroller)
 
-        // Match by order — min of both lengths
         const count = Math.min(sourceLines.length, previewHeadings.length)
         if (count === 0) return null
 
         const map: { editorY: number; previewY: number }[] = []
 
         for (let i = 0; i < count; i++) {
-          // Editor: get pixel offset of the heading line
-          const lineInfo = editorView.state.doc.line(sourceLines[i] + 1) // 1-based
+          const lineInfo = editorView.state.doc.line(sourceLines[i] + 1)
           const editorY = editorView.lineBlockAt(lineInfo.from).top
-
-          // Preview: offset relative to scroller
           const previewY = previewHeadings[i].offsetTop
           map.push({ editorY, previewY })
         }
 
-        // Add end boundaries
         const editorMax = editorScroller.scrollHeight
         const previewMax = previewScroller.scrollHeight
         map.push({ editorY: editorMax, previewY: previewMax })
@@ -137,7 +143,6 @@ export function Panels() {
         toKey: 'editorY' | 'previewY',
         map: { editorY: number; previewY: number }[]
       ): number => {
-        // Find the segment the scroll position falls in
         let i = 0
         while (i < map.length - 1 && map[i + 1][fromKey] <= scrollTop) i++
 
@@ -187,7 +192,127 @@ export function Panels() {
     }, 200)
 
     return () => clearTimeout(timer)
-  }, [viewMode, scrollSync, html])
+  }, [viewMode, scrollSync, contentMode, html])
+
+  // ── Presentation mode: cursor ↔ currentSlide sync ──
+
+  // Helper: get section start lines (first content line of each slide)
+  const getSectionStarts = useCallback((src: string): number[] => {
+    const boundaries = findSlideBoundaries(src)
+    const lines = src.split('\n')
+    const starts: number[] = []
+    let lineStart = 0
+
+    for (const bnd of boundaries) {
+      const segment = lines.slice(lineStart, bnd).join('\n').trim()
+      if (segment.length > 0) {
+        for (let l = lineStart; l < bnd; l++) {
+          if (lines[l].trim().length > 0) { starts.push(l); break }
+        }
+      }
+      lineStart = bnd + 1
+    }
+    // Last segment
+    const lastSegment = lines.slice(lineStart).join('\n').trim()
+    if (lastSegment.length > 0) {
+      for (let l = lineStart; l < lines.length; l++) {
+        if (lines[l].trim().length > 0) { starts.push(l); break }
+      }
+    }
+
+    return starts
+  }, [])
+
+  // Helper: which slide does a given line (0-based) belong to?
+  const getSlideForLine = useCallback((lineNum: number, src: string): number => {
+    const boundaries = findSlideBoundaries(src)
+    const lines = src.split('\n')
+    let slideIdx = 0
+    let lineStart = 0
+
+    for (const bnd of boundaries) {
+      const segment = lines.slice(lineStart, bnd).join('\n').trim()
+      if (lineNum <= bnd) {
+        return segment.length > 0 ? slideIdx : Math.max(0, slideIdx - 1)
+      }
+      if (segment.length > 0) slideIdx++
+      lineStart = bnd + 1
+    }
+    // Cursor is in the last segment
+    return slideIdx
+  }, [])
+
+  // Cursor → slide: listen for cursor/selection changes in the editor
+  useEffect(() => {
+    if (viewMode !== 'split' || contentMode !== 'presentation') return
+    if (slides.length === 0) return
+
+    const editorView = editorRef.current?.getView?.()
+    if (!editorView) return
+
+    const checkCursor = () => {
+      if (isSyncing.current) return
+      const src = editorView.state.doc.toString()
+      const cursorPos = editorView.state.selection.main.head
+      const cursorLine = editorView.state.doc.lineAt(cursorPos).number - 1 // 0-based
+
+      const targetSlide = getSlideForLine(cursorLine, src)
+      const clamped = Math.max(0, Math.min(targetSlide, slides.length - 1))
+
+      if (clamped !== useContentModeStore.getState().currentSlide) {
+        isSyncing.current = true
+        setCurrentSlide(clamped)
+        requestAnimationFrame(() => { isSyncing.current = false })
+      }
+    }
+
+    // Listen for any interaction that might move the cursor
+    const dom = editorView.dom
+    dom.addEventListener('keyup', checkCursor)
+    dom.addEventListener('mouseup', checkCursor)
+    dom.addEventListener('focus', checkCursor)
+
+    // Also check on initial mount
+    checkCursor()
+
+    return () => {
+      dom.removeEventListener('keyup', checkCursor)
+      dom.removeEventListener('mouseup', checkCursor)
+      dom.removeEventListener('focus', checkCursor)
+    }
+  }, [viewMode, contentMode, slides.length, source, setCurrentSlide, getSlideForLine])
+
+  // Slide → cursor: when currentSlide changes, move cursor to first line of that section
+  useEffect(() => {
+    if (viewMode !== 'split' || contentMode !== 'presentation') return
+    if (isSyncing.current) return
+
+    const editorView = editorRef.current?.getView?.()
+    if (!editorView) return
+
+    const src = editorView.state.doc.toString()
+    const starts = getSectionStarts(src)
+
+    if (starts.length === 0) return
+
+    const targetLine0 = starts[Math.min(currentSlide, starts.length - 1)]
+    const lineInfo = editorView.state.doc.line(targetLine0 + 1) // 1-based
+
+    // Only move cursor if it's not already in the target section
+    const currentCursorLine = editorView.state.doc.lineAt(
+      editorView.state.selection.main.head
+    ).number - 1
+    const currentSection = getSlideForLine(currentCursorLine, src)
+    if (currentSection === currentSlide) return
+
+    isSyncing.current = true
+    editorView.dispatch({
+      selection: { anchor: lineInfo.from },
+      scrollIntoView: true,
+    })
+    editorView.focus()
+    setTimeout(() => { isSyncing.current = false }, 100)
+  }, [currentSlide, viewMode, contentMode, getSectionStarts, getSlideForLine])
 
   if (viewMode === 'editor') {
     return (
@@ -200,7 +325,7 @@ export function Panels() {
   if (viewMode === 'preview') {
     return (
       <div className="flex-1 overflow-hidden">
-        <Preview />
+        <PreviewRouter />
       </div>
     )
   }
@@ -229,7 +354,7 @@ export function Panels() {
       </div>
 
       <div className="overflow-hidden" style={{ width: `${100 - splitPercent}%` }}>
-        <Preview ref={previewRef} />
+        <PreviewRouter ref={previewRef} />
       </div>
     </div>
   )
