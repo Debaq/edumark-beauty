@@ -3,6 +3,7 @@ import type { ContentMode, PageConfig, SlideConfig, Slide, SlideTemplate } from 
 import { PAPER_SIZES } from '@/types/contentMode'
 import { updateSlideMetadataInSource } from '@/lib/slideParser'
 import { useDocumentStore } from '@/store/document'
+import { useThemeStore } from '@/store/theme'
 
 interface ContentModeStore {
   contentMode: ContentMode
@@ -43,7 +44,10 @@ export const useContentModeStore = create<ContentModeStore>((set) => ({
   slides: [],
   slideZoomOverrides: new Map(),
 
-  setContentMode: (mode) => set({ contentMode: mode, currentSlide: 0 }),
+  setContentMode: (mode) => {
+    set({ contentMode: mode, currentSlide: 0 })
+    useThemeStore.getState().switchMode(mode)
+  },
   setPageConfig: (config) => set({ pageConfig: config }),
   setSlideConfig: (config) => set({ slideConfig: config }),
   setCurrentSlide: (index) => set({ currentSlide: index }),

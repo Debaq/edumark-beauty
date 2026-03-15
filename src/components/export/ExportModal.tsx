@@ -73,7 +73,7 @@ export function ExportModal() {
   const handlePresentationHtml = useCallback(async () => {
     try {
       const { exportPresentationHtml } = await import('@/lib/exportPresentation')
-      const result = exportPresentationHtml(slides, themeConfig, filename)
+      const result = exportPresentationHtml(slides, themeConfig, slideConfig, filename)
       const blob = new Blob([result], { type: 'text/html' })
       saveAs(blob, filename.replace(/\.edm$/, '') + '_presentacion.html')
       addToast('Presentacion HTML exportada', 'success')
@@ -81,28 +81,42 @@ export function ExportModal() {
       addToast('Error al exportar presentacion', 'error')
     }
     setOpen(false)
-  }, [slides, themeConfig, filename, addToast, setOpen])
+  }, [slides, themeConfig, slideConfig, filename, addToast, setOpen])
+
+  const slideZoomOverrides = useContentModeStore((s) => s.slideZoomOverrides)
 
   const handlePresentationPdf = useCallback(async () => {
     try {
       addToast('Generando PDF de presentacion...', 'info')
       const { exportPresentationPdf } = await import('@/lib/exportPresentationPdf')
-      await exportPresentationPdf(slides, themeConfig, slideConfig, filename)
+      await exportPresentationPdf(slides, themeConfig, slideConfig, filename, slideZoomOverrides)
       addToast('PDF de presentacion generado', 'success')
     } catch {
       addToast('Error al generar PDF de presentacion', 'error')
     }
     setOpen(false)
-  }, [slides, themeConfig, slideConfig, filename, addToast, setOpen])
+  }, [slides, themeConfig, slideConfig, filename, slideZoomOverrides, addToast, setOpen])
 
-  const handlePptx = useCallback(async () => {
+  const handlePptxRaster = useCallback(async () => {
     try {
-      addToast('Generando PPTX...', 'info')
-      const { exportPptx } = await import('@/lib/exportPptx')
-      await exportPptx(slides, themeConfig, slideConfig, filename)
+      addToast('Generando PPTX (imagen)...', 'info')
+      const { exportPptxRaster } = await import('@/lib/exportPptxRaster')
+      await exportPptxRaster(slides, themeConfig, slideConfig, filename, slideZoomOverrides)
       addToast('PPTX generado correctamente', 'success')
     } catch {
       addToast('Error al generar PPTX', 'error')
+    }
+    setOpen(false)
+  }, [slides, themeConfig, slideConfig, filename, slideZoomOverrides, addToast, setOpen])
+
+  const handlePptxNative = useCallback(async () => {
+    try {
+      addToast('Generando PPTX nativo...', 'info')
+      const { exportPptxNative } = await import('@/lib/exportPptxNative')
+      await exportPptxNative(slides, themeConfig, slideConfig, filename)
+      addToast('PPTX nativo generado correctamente', 'success')
+    } catch {
+      addToast('Error al generar PPTX nativo', 'error')
     }
     setOpen(false)
   }, [slides, themeConfig, slideConfig, filename, addToast, setOpen])
@@ -153,9 +167,17 @@ export function ExportModal() {
           {
             icon: Presentation,
             title: 'PPTX',
-            desc: 'PowerPoint compatible con Office y Google Slides',
+            desc: 'Diapositivas como imagen — fiel al preview',
             color: 'text-amber-400',
-            action: handlePptx,
+            action: handlePptxRaster,
+            badge: 'Experimental',
+          },
+          {
+            icon: Presentation,
+            title: 'PPTX Nativo',
+            desc: 'Texto editable, cards como figuras — SVGs rasterizados',
+            color: 'text-amber-400',
+            action: handlePptxNative,
             badge: 'Experimental',
           },
         ]
@@ -210,7 +232,7 @@ export function ExportModal() {
     }
   }, [
     contentMode, handleHtml, handleSnippet, handlePdf, handleDocx,
-    handlePresentationHtml, handlePresentationPdf, handlePptx,
+    handlePresentationHtml, handlePresentationPdf, handlePptxRaster, handlePptxNative,
     handleBookPdf, handleBookDocx,
   ])
 

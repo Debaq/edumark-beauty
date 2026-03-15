@@ -1,32 +1,29 @@
-import type { ThemeConfig } from '@/types/theme'
 import type { Slide, SlideConfig } from '@/types/contentMode'
+import type { ThemeConfig } from '@/types/theme'
 import { generateThemeCss } from '@/components/preview/previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import presentationCss from '@/styles/presentation.css?raw'
 
 /**
- * Exports presentation slides as a PDF.
- * Renders each slide individually to a canvas (html2canvas),
- * then assembles all canvases into a multi-page PDF (jsPDF).
+ * PPTX export — renders each slide to a canvas image (html2canvas)
+ * and embeds it as a full-slide image in pptxgenjs.
  *
- * This per-slide approach avoids issues with:
- * - html2canvas not supporting container queries (container-type: inline-size)
- * - Giant single-canvas pagination alignment problems
- * - Page-break CSS inconsistencies
+ * This produces pixel-perfect slides that match the preview exactly,
+ * including cards, math, diagrams, SVGs, and theme colors.
  */
-export async function exportPresentationPdf(
+export async function exportPptxRaster(
   slides: Slide[],
   theme: ThemeConfig,
   slideConfig: SlideConfig,
   filename: string,
   slideZoomOverrides?: Map<number, number>
 ): Promise<void> {
-  const [html2canvasModule, jspdfModule] = await Promise.all([
+  const [PptxGenJSModule, html2canvasModule] = await Promise.all([
+    import('pptxgenjs'),
     import('html2canvas'),
-    import('jspdf'),
   ])
+  const PptxGenJS = PptxGenJSModule.default
   const html2canvas = html2canvasModule.default
-  const jsPDF = jspdfModule.jsPDF
 
   // Resolve aspect ratio
   let aspectNum: number
@@ -38,55 +35,57 @@ export async function exportPresentationPdf(
     aspectNum = 16 / 9
   }
 
+  // Pixel dimensions for rendering (same as PDF export)
   const slideWidthPx = 1200
   const slideHeightPx = Math.round(slideWidthPx / aspectNum)
 
-  // PDF page matches slide aspect ratio exactly
-  const pageWidthMm = 297
-  const pageHeightMm = Math.round(pageWidthMm / aspectNum)
+  // PPTX dimensions in inches
+  let slideW: number
+  let slideH: number
+  if (slideConfig.ratio === '4:3') {
+    slideW = 10; slideH = 7.5
+  } else if (slideConfig.ratio === 'custom' && slideConfig.customWidth && slideConfig.customHeight) {
+    slideW = 13.333
+    slideH = slideW / aspectNum
+  } else {
+    slideW = 13.333; slideH = 7.5
+  }
+
+  const pptx = new PptxGenJS()
+  pptx.defineLayout({ name: 'EDM', width: slideW, height: slideH })
+  pptx.layout = 'EDM'
 
   const themeCssVars = generateThemeCss(theme)
-
-  // Shared CSS for all slides
   const sharedCss = `
     .edm-preview { ${themeCssVars} }
     ${previewBaseCss}
     ${presentationCss}
     ${theme.customCss || ''}
-
-    .pdf-slide-root {
+    .pptx-slide-root {
       width: ${slideWidthPx}px;
       height: ${slideHeightPx}px;
       container-type: inline-size;
       overflow: hidden;
       position: relative;
     }
-    .pdf-slide-root .edm-slide {
+    .pptx-slide-root .edm-slide {
       aspect-ratio: unset;
       max-width: none;
     }
   `
 
-  // Create the PDF document
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: [pageWidthMm, pageHeightMm],
-  })
-
-  // Render each slide to its own canvas, then add as a PDF page
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]
 
-    // ── Build a temporary single-slide element ──
+    // ── Build temp single-slide element (same technique as PDF export) ──
     const root = document.createElement('div')
-    root.className = 'pdf-slide-root'
+    root.className = 'pptx-slide-root'
 
     const style = document.createElement('style')
     style.textContent = sharedCss
     root.appendChild(style)
 
-    // Measurement div (height: auto) to compute auto-fit scale
+    // Measurement div
     const measure = document.createElement('div')
     measure.className = `edm-preview edm-slide edm-slide-${slide.template}`
     measure.style.cssText = `
@@ -97,7 +96,7 @@ export async function exportPresentationPdf(
     measure.innerHTML = slide.html
     root.appendChild(measure)
 
-    // Visible slide
+    // Visible div
     const visible = document.createElement('div')
     visible.className = `edm-preview edm-slide edm-slide-${slide.template}`
     visible.style.cssText = `
@@ -110,14 +109,9 @@ export async function exportPresentationPdf(
     root.appendChild(visible)
 
     document.body.appendChild(root)
-
-    // Open all <details> — PDF must show solutions expanded
-    root.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
-
-    // Wait for layout + container queries to resolve
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 
-    // ── Compute scale (same as PresentationPreview) ──
+    // ── Auto-fit / manual zoom (same as PresentationPreview) ──
     const contentH = measure.offsetHeight
     const autoScale = contentH > 0 ? Math.min(slideHeightPx / contentH, 1) : 1
 
@@ -126,14 +120,12 @@ export async function exportPresentationPdf(
     const manualZoom = storeZoom ?? (Number.isFinite(metaZoom) ? metaZoom : undefined)
     const scale = manualZoom ?? autoScale
 
-    // Apply transform
     visible.style.width = `${100 / scale}%`
     visible.style.height = `${100 / scale}%`
     visible.style.transform = `scale(${scale})`
     visible.style.transformOrigin = 'top left'
     measure.remove()
 
-    // Wait one more frame for transform to apply
     await new Promise<void>((r) => requestAnimationFrame(() => r()))
 
     // ── Render to canvas ──
@@ -146,14 +138,21 @@ export async function exportPresentationPdf(
       windowHeight: slideHeightPx,
     })
 
-    // ── Add canvas as PDF page ──
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
-    if (i > 0) pdf.addPage()
-    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm)
+    // ── Add as PPTX slide image ──
+    const pptxSlide = pptx.addSlide()
+    const imgData = canvas.toDataURL('image/png')
+    pptxSlide.addImage({
+      data: imgData,
+      x: 0,
+      y: 0,
+      w: slideW,
+      h: slideH,
+    })
 
-    // Cleanup
     document.body.removeChild(root)
   }
 
-  pdf.save(filename.replace(/\.edm$/, '') + '_presentacion.pdf')
+  await pptx.writeFile({
+    fileName: filename.replace(/\.edm$/, '') + '.pptx',
+  })
 }

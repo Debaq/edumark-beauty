@@ -2,6 +2,7 @@ import { useCallback, useState, useRef, useEffect } from 'react'
 import { Upload, FileText, Sparkles, Download, HelpCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useDocumentStore } from '@/store/document'
+import { useThemeStore } from '@/store/theme'
 import { useUIStore } from '@/store/ui'
 import { decodeAsync } from 'edumark-js'
 
@@ -28,6 +29,8 @@ export function Welcome() {
 
   const loadContent = useCallback(
     async (text: string, name: string) => {
+      // Aplicar tema embebido en el documento (si existe)
+      useThemeStore.getState().loadThemeFromSource(text)
       setSource(text)
       setFilename(name)
       try {

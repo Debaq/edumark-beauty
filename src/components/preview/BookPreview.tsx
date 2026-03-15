@@ -2,8 +2,10 @@ import { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useContentModeStore } from '@/store/contentMode'
+import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
+import { interactivityCss } from '@/lib/interactivity'
 import '@/styles/book.css'
 
 /** Convert mm to px at 96 DPI */
@@ -97,6 +99,9 @@ export function BookPreview() {
     const el = measureRef.current
     if (!el || !html) return
 
+    // Open all <details> — book mode shows solutions expanded
+    el.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
+
     // Wait for fonts and images to settle
     requestAnimationFrame(() => {
       const result = paginateNodes(el, contentHeight)
@@ -115,6 +120,10 @@ export function BookPreview() {
     return () => clearTimeout(timer)
   }, [html, paginate])
 
+  // Interactividad de preguntas (scoped al contenedor del libro)
+  const bookContainerRef = useRef<HTMLDivElement>(null)
+  useQuestionInteractivity(bookContainerRef, html)
+
   if (!html) {
     return (
       <div className="h-full flex items-center justify-center text-[var(--app-fg3)]">
@@ -124,8 +133,8 @@ export function BookPreview() {
   }
 
   return (
-    <div className="edm-book-container h-full overflow-auto">
-      <style>{previewBaseCss}</style>
+    <div ref={bookContainerRef} className="edm-book-container h-full overflow-auto">
+      <style>{previewBaseCss}{interactivityCss}</style>
       <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"

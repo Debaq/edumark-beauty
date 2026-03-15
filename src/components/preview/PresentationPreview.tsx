@@ -8,7 +8,9 @@ import { useThemeStore } from '@/store/theme'
 import { generateThemeCss } from './previewTheme'
 import { useSlides } from '@/hooks/useSlides'
 import { SlideTemplateSelector } from './SlideTemplateSelector'
+import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import previewBaseCss from '@/styles/preview-base.css?raw'
+import { interactivityCss } from '@/lib/interactivity'
 import '@/styles/presentation.css'
 
 const ZOOM_STEP = 0.05
@@ -47,6 +49,9 @@ export function PresentationPreview() {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
+
+  // Interactividad de preguntas
+  useQuestionInteractivity(containerRef, slide?.html ?? '')
 
   // ── Auto-fit system ──
   const [autoScale, setAutoScale] = useState(1)
@@ -90,7 +95,12 @@ export function PresentationPreview() {
       const vh = viewport.clientHeight
       if (vw <= 0 || vh <= 0) return
 
+      // Open all <details> for measurement so scale accounts for expanded content
+      const details = measure.querySelectorAll('details:not([open])')
+      details.forEach((d) => d.setAttribute('open', ''))
       const contentH = measure.offsetHeight
+      details.forEach((d) => d.removeAttribute('open'))
+
       if (contentH <= 0) return
 
       const scaleY = vh / contentH
@@ -237,7 +247,7 @@ export function PresentationPreview() {
   }
 
   // ── Shared styles ──
-  const slideStyleBlock = `${previewBaseCss}\n.edm-preview { ${themeCssVars} }\n${themeConfig.customCss || ''}`
+  const slideStyleBlock = `${previewBaseCss}\n${interactivityCss}\n.edm-preview { ${themeCssVars} }\n${themeConfig.customCss || ''}`
   const slideLinks = (
     <>
       <link

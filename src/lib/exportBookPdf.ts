@@ -21,6 +21,9 @@ export async function exportBookPdf(
 
   const previewEl = container.querySelector('.edm-preview') || container
 
+  // Book PDF: expand all <details> so solutions are visible in print
+  previewEl.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
+
   await html2pdf()
     .set({
       margin: [

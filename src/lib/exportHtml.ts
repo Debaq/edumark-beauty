@@ -1,6 +1,7 @@
 import type { ThemeConfig } from '@/types/theme'
 import { generateThemeCss } from '@/components/preview/previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
+import { interactivityScript, interactivityCss } from '@/lib/interactivity'
 
 /**
  * Genera un archivo HTML completo y autocontenido
@@ -29,6 +30,7 @@ export function exportFullHtml(html: string, theme: ThemeConfig, title: string):
       ${themeCssVars}
     }
     ${previewBaseCss}
+    ${interactivityCss}
     ${theme.customCss ? `/* CSS personalizado */\n${theme.customCss}` : ''}
   </style>
 </head>
@@ -36,6 +38,7 @@ export function exportFullHtml(html: string, theme: ThemeConfig, title: string):
   <div class="edm-preview">
     ${html}
   </div>
+  <script>${interactivityScript}</script>
 </body>
 </html>`
 }

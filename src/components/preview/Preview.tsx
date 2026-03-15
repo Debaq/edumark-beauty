@@ -1,8 +1,10 @@
 import { useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
+import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
+import { interactivityCss } from '@/lib/interactivity'
 
 export interface PreviewHandle {
   getScroller: () => HTMLElement | null
@@ -21,6 +23,9 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
   // Generar CSS del tema como custom properties
   const themeCssVars = useMemo(() => generateThemeCss(themeConfig), [themeConfig])
 
+  // Interactividad de preguntas
+  useQuestionInteractivity(containerRef, html)
+
   if (!html) {
     return (
       <div className="h-full flex items-center justify-center text-[var(--app-fg3)]">
@@ -31,7 +36,7 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
 
   return (
     <div ref={scrollerRef} className="h-full overflow-auto" style={{ background: themeConfig.bg }}>
-      <style>{previewBaseCss}</style>
+      <style>{previewBaseCss}{interactivityCss}</style>
       <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"

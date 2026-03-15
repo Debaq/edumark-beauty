@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import type { ThemeConfig } from '@/types/theme'
+import type { ContentMode } from '@/types/contentMode'
+import { useDocumentStore } from '@/store/document'
+import { parseThemeBlock, updateThemeInSource } from '@/lib/themeEmbed'
 
 // ─── Presets de tema ─────────────────────────────────────────
 
@@ -650,46 +653,161 @@ export const PRESETS = {
 
 export type PresetKey = keyof typeof PRESETS
 
+// ─── Sync helpers ─────────────────────────────────────────────
+
+/** Guard to prevent theme↔source sync loops. */
+let _syncing = false
+
+/** Write the per-mode themes into the document source comment. */
+function syncThemeToSource() {
+  if (_syncing) return
+  const { source } = useDocumentStore.getState()
+  if (!source) return
+  const { modeConfigs, modePresets } = useThemeStore.getState()
+  const next = updateThemeInSource(source, modePresets, modeConfigs)
+  if (next !== source) {
+    useDocumentStore.getState().setSource(next)
+  }
+}
+
+function defaultModeConfigs(): Record<ContentMode, ThemeConfig> {
+  return { html: { ...DARK_THEME }, presentation: { ...DARK_THEME }, book: { ...DARK_THEME } }
+}
+
+function defaultModePresets(): Record<ContentMode, PresetKey | null> {
+  return { html: 'dark', presentation: 'dark', book: 'dark' }
+}
+
 // ─── Store ────────────────────────────────────────────────────
 
 interface ThemeStore {
+  /** Tema activo (el del modo actual) */
   config: ThemeConfig
   activePreset: PresetKey | null
 
-  /** Actualizar un token individual */
+  /** Modo de contenido actual */
+  currentMode: ContentMode
+  /** Tema por modo */
+  modeConfigs: Record<ContentMode, ThemeConfig>
+  modePresets: Record<ContentMode, PresetKey | null>
+
+  /** Actualizar un token individual (en el modo actual) */
   set: <K extends keyof ThemeConfig>(key: K, value: ThemeConfig[K]) => void
 
-  /** Aplicar un preset completo */
+  /** Aplicar un preset completo (al modo actual) */
   applyPreset: (key: PresetKey) => void
 
-  /** Importar un JSON completo */
+  /** Importar un JSON completo (al modo actual) */
   importTheme: (json: ThemeConfig) => void
 
   /** Obtener una copia del config actual */
   exportTheme: () => ThemeConfig
+
+  /** Cambiar el modo activo (carga el tema de ese modo) */
+  switchMode: (mode: ContentMode) => void
+
+  /** Leer temas del source de un documento (al cargar archivo). */
+  loadThemeFromSource: (source: string) => void
 }
 
 export const useThemeStore = create<ThemeStore>((set, get) => ({
   config: { ...DARK_THEME },
   activePreset: 'dark',
+  currentMode: 'html',
+  modeConfigs: defaultModeConfigs(),
+  modePresets: defaultModePresets(),
 
-  set: (key, value) =>
+  set: (key, value) => {
+    const mode = get().currentMode
+    set((state) => {
+      const newConfig = { ...state.config, [key]: value }
+      return {
+        config: newConfig,
+        activePreset: null,
+        modeConfigs: { ...state.modeConfigs, [mode]: newConfig },
+        modePresets: { ...state.modePresets, [mode]: null },
+      }
+    })
+    syncThemeToSource()
+  },
+
+  applyPreset: (key) => {
+    const mode = get().currentMode
+    const presetConfig = { ...PRESETS[key].config }
     set((state) => ({
-      config: { ...state.config, [key]: value },
-      activePreset: null,
-    })),
-
-  applyPreset: (key) =>
-    set({
-      config: { ...PRESETS[key].config },
+      config: presetConfig,
       activePreset: key,
-    }),
+      modeConfigs: { ...state.modeConfigs, [mode]: presetConfig },
+      modePresets: { ...state.modePresets, [mode]: key },
+    }))
+    syncThemeToSource()
+  },
 
-  importTheme: (json) =>
-    set({
-      config: { ...json },
+  importTheme: (json) => {
+    const mode = get().currentMode
+    const imported = { ...json }
+    set((state) => ({
+      config: imported,
       activePreset: null,
-    }),
+      modeConfigs: { ...state.modeConfigs, [mode]: imported },
+      modePresets: { ...state.modePresets, [mode]: null },
+    }))
+    syncThemeToSource()
+  },
 
   exportTheme: () => ({ ...get().config }),
+
+  switchMode: (mode) => {
+    const { modeConfigs, modePresets } = get()
+    set({
+      currentMode: mode,
+      config: modeConfigs[mode],
+      activePreset: modePresets[mode],
+    })
+  },
+
+  loadThemeFromSource: (source) => {
+    const parsed = parseThemeBlock(source)
+    _syncing = true
+
+    if (parsed) {
+      const newConfigs = { ...get().modeConfigs }
+      const newPresets = { ...get().modePresets }
+
+      for (const mode of ['html', 'presentation', 'book'] as ContentMode[]) {
+        const d = parsed[mode]
+        if (d?.preset && d.preset in PRESETS) {
+          newConfigs[mode] = { ...PRESETS[d.preset as PresetKey].config }
+          newPresets[mode] = d.preset as PresetKey
+        } else if (d?.config) {
+          newConfigs[mode] = { ...d.config }
+          newPresets[mode] = null
+        } else {
+          newConfigs[mode] = { ...DARK_THEME }
+          newPresets[mode] = 'dark'
+        }
+      }
+
+      const mode = get().currentMode
+      set({
+        modeConfigs: newConfigs,
+        modePresets: newPresets,
+        config: newConfigs[mode],
+        activePreset: newPresets[mode],
+      })
+    } else {
+      // Sin tema en el documento → defaults
+      const mode = get().currentMode
+      const configs = defaultModeConfigs()
+      const presets = defaultModePresets()
+      set({
+        modeConfigs: configs,
+        modePresets: presets,
+        config: configs[mode],
+        activePreset: presets[mode],
+      })
+    }
+
+    _syncing = false
+  },
 }))

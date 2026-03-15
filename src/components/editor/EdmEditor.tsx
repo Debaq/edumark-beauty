@@ -8,6 +8,7 @@ import { sectionColors } from './section-colors'
 import { blockNesting } from './block-nesting'
 import { codeHighlight } from './code-highlight'
 import { markdownHighlight } from './markdown-highlight'
+import { commentFold } from './comment-fold'
 import { tableFormatter } from './table-formatter'
 import { useDocumentStore } from '@/store/document'
 import { decodeAsync } from 'edumark-js'
@@ -64,6 +65,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
       doc: source,
       extensions: [
         lineNumbers(),
+        commentFold,
         markdown(),
         oneDark,
         history(),
