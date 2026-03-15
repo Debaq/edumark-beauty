@@ -99,7 +99,7 @@ export function Welcome() {
     async (file: string) => {
       setLoadingExample(file)
       try {
-        const res = await fetch(EXAMPLES_BASE_URL + file)
+        const res = await fetch(EXAMPLES_BASE_URL + file + '?t=' + Date.now())
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const text = await res.text()
         loadContent(text, file)
