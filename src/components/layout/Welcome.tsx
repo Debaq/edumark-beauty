@@ -1,15 +1,23 @@
-import { useCallback, useState, useRef } from 'react'
-import { Upload, FileText, Sparkles } from 'lucide-react'
+import { useCallback, useState, useRef, useEffect } from 'react'
+import { Upload, FileText, Sparkles, Download, HelpCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useDocumentStore } from '@/store/document'
+import { useUIStore } from '@/store/ui'
 import { decode } from 'edumark-js'
 
 const EXAMPLES_BASE_URL = 'https://raw.githubusercontent.com/Debaq/edumark/main/ejemplos/'
+const SKILLS_API_URL = 'https://api.github.com/repos/Debaq/edumark/contents/llms'
+const SKILLS_RAW_BASE = 'https://raw.githubusercontent.com/Debaq/edumark/main/llms/'
 
 const EXAMPLE_FILES = [
   { file: 'capitulo_ejemplo.edm', label: 'Cinematica (Fisica)' },
   { file: 'U1_01_neurona_celulas_gliales.edm', label: 'Neurona y celulas gliales' },
 ] as const
+
+interface GitHubFile {
+  name: string
+  download_url: string
+}
 
 export function Welcome() {
   const setSource = useDocumentStore((s) => s.setSource)
@@ -65,7 +73,24 @@ export function Welcome() {
     [handleFile]
   )
 
+  const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
+  const [skills, setSkills] = useState<GitHubFile[]>([])
+  const [skillsLoading, setSkillsLoading] = useState(false)
   const [loadingExample, setLoadingExample] = useState<string | null>(null)
+
+  useEffect(() => {
+    setSkillsLoading(true)
+    fetch(SKILLS_API_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((files: GitHubFile[]) => {
+        setSkills(files.filter((f) => f.name.endsWith('.md') && f.name !== 'README.md'))
+      })
+      .catch(() => setSkills([]))
+      .finally(() => setSkillsLoading(false))
+  }, [])
 
   const handleLoadExample = useCallback(
     async (file: string) => {
@@ -163,6 +188,48 @@ export function Welcome() {
             </button>
           ))}
         </div>
+
+        {/* Prompts para LLMs */}
+        {skills.length > 0 && (
+          <>
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex-1 h-px bg-[var(--app-border)]" />
+              <span className="text-xs text-[var(--app-fg3)]">prompts para LLMs</span>
+              <div className="flex-1 h-px bg-[var(--app-border)]" />
+            </div>
+            <div className="flex flex-col gap-2 w-full">
+              <p className="text-xs text-[var(--app-fg3)] text-center mb-1">
+                Descarga un prompt para que tu IA genere archivos .edm
+              </p>
+              {skills.map((skill) => (
+                <a
+                  key={skill.name}
+                  href={SKILLS_RAW_BASE + skill.name}
+                  download={skill.name}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--app-bg1)]
+                    border border-[var(--app-border)] text-sm font-medium text-[var(--app-fg1)]
+                    hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+                >
+                  <Download size={16} />
+                  {skill.name.replace('.md', '').replace(/_/g, ' ')}
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+        {skillsLoading && (
+          <p className="text-xs text-[var(--app-fg3)]">Cargando prompts...</p>
+        )}
+
+        {/* Ayuda */}
+        <button
+          onClick={() => setHelpModalOpen(true)}
+          className="flex items-center gap-2 text-xs text-[var(--app-fg3)]
+            hover:text-[var(--app-accent)] transition-colors mt-2"
+        >
+          <HelpCircle size={14} />
+          ¿Que es Edumark?
+        </button>
       </div>
     </div>
   )

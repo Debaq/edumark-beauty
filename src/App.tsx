@@ -5,6 +5,7 @@ import { Toolbar } from '@/components/layout/Toolbar'
 import { Panels } from '@/components/layout/Panels'
 import { ConfigPanel } from '@/components/config/ConfigPanel'
 import { ExportModal } from '@/components/export/ExportModal'
+import { HelpModal } from '@/components/layout/HelpModal'
 import { ToastContainer } from '@/components/ui/Toast'
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
     return (
       <div className="h-full flex flex-col">
         <Welcome />
+        <HelpModal />
         <ToastContainer />
       </div>
     )
@@ -29,6 +31,7 @@ export default function App() {
         {configPanelOpen && <ConfigPanel />}
       </div>
       <ExportModal />
+      <HelpModal />
       <ToastContainer />
     </div>
   )

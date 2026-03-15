@@ -1,6 +1,6 @@
 import {
   PanelLeftClose, PanelRightClose, Columns2,
-  Download, Settings, FileText, RotateCcw,
+  Download, Settings, FileText, RotateCcw, HelpCircle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
@@ -18,6 +18,7 @@ export function Toolbar() {
   const setExportModalOpen = useUIStore((s) => s.setExportModalOpen)
   const configPanelOpen = useUIStore((s) => s.configPanelOpen)
   const setConfigPanelOpen = useUIStore((s) => s.setConfigPanelOpen)
+  const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
   const filename = useDocumentStore((s) => s.filename)
   const reset = useDocumentStore((s) => s.reset)
 
@@ -80,6 +81,14 @@ export function Toolbar() {
         >
           <Download size={14} />
           <span className="hidden sm:inline">Exportar</span>
+        </button>
+        <button
+          onClick={() => setHelpModalOpen(true)}
+          title="Ayuda"
+          className="p-2 rounded-lg text-[var(--app-fg3)] hover:bg-[var(--app-bg2)]
+            hover:text-[var(--app-fg2)] transition-colors"
+        >
+          <HelpCircle size={14} />
         </button>
         <button
           onClick={reset}

@@ -86,3 +86,26 @@ body {
 .cm-focused {
   outline: none !important;
 }
+
+/* ── Help modal (README renderizado) ────────────── */
+.prose-help {
+  color: var(--app-fg);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.prose-help h1 { font-size: 1.5em; font-weight: 700; margin: 1em 0 0.5em; color: var(--app-fg); }
+.prose-help h2 { font-size: 1.25em; font-weight: 600; margin: 1.5em 0 0.5em; color: var(--app-fg); border-bottom: 1px solid var(--app-border); padding-bottom: 0.3em; }
+.prose-help h3 { font-size: 1.1em; font-weight: 600; margin: 1.2em 0 0.4em; color: var(--app-fg1); }
+.prose-help p { margin: 0.6em 0; color: var(--app-fg1); }
+.prose-help a { color: var(--app-accent); text-decoration: none; }
+.prose-help a:hover { text-decoration: underline; }
+.prose-help code { background: var(--app-bg2); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+.prose-help pre { background: var(--app-bg2); padding: 1em; border-radius: 8px; overflow-x: auto; margin: 0.8em 0; }
+.prose-help pre code { background: none; padding: 0; }
+.prose-help blockquote { border-left: 3px solid var(--app-accent); padding-left: 1em; margin: 0.8em 0; color: var(--app-fg2); }
+.prose-help ul, .prose-help ol { padding-left: 1.5em; margin: 0.5em 0; }
+.prose-help li { margin: 0.25em 0; color: var(--app-fg1); }
+.prose-help table { width: 100%; border-collapse: collapse; margin: 0.8em 0; font-size: 0.9em; }
+.prose-help th, .prose-help td { border: 1px solid var(--app-border); padding: 0.4em 0.8em; text-align: left; }
+.prose-help th { background: var(--app-bg2); font-weight: 600; }
+.prose-help strong { color: var(--app-fg); }
