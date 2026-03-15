@@ -42,9 +42,15 @@ function assignNodeIds(container: HTMLElement): BookNode[] {
   return nodes
 }
 
+/** Detect if a node's HTML starts with a heading tag */
+function isHeading(html: string): boolean {
+  return /^<h[1-6][\s>]/i.test(html)
+}
+
 /**
  * Walk top-level children of a container and group them into pages
  * based on available content height. Returns pages with node IDs.
+ * Post-process: if a page ends with a heading, move it to the next page.
  */
 function paginateNodes(
   container: HTMLElement,
@@ -81,7 +87,26 @@ function paginateNodes(
     pages.push(currentPage)
   }
 
+  // Anti-orphan: if a page ends with a heading, move it to the next page
+  for (let p = 0; p < pages.length - 1; p++) {
+    const page = pages[p]
+    if (page.length > 1 && isHeading(page[page.length - 1].html)) {
+      const orphan = page.pop()!
+      pages[p + 1].unshift(orphan)
+    }
+  }
+
   return pages
+}
+
+/** Deep compare two BookLayoutConfig objects by JSON */
+function configsEqual(
+  a: ReturnType<typeof parseBookLayout>,
+  b: ReturnType<typeof parseBookLayout>,
+): boolean {
+  if (a === b) return true
+  if (a === null || b === null) return false
+  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 export function useBookPagination() {
@@ -105,9 +130,13 @@ export function useBookPagination() {
   const contentHeight = pageHeightPx - paddingTop - paddingBottom
 
   // Load layout config from source on mount / source change
+  // Compare before loading to avoid redundant cycles from debounced persist
   useEffect(() => {
     const parsed = parseBookLayout(source)
-    loadFromSource(parsed)
+    const current = useBookLayoutStore.getState().layoutConfig
+    if (!configsEqual(parsed, current)) {
+      loadFromSource(parsed)
+    }
   }, [source, loadFromSource])
 
   const paginate = useCallback(() => {

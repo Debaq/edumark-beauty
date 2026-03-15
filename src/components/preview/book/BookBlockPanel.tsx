@@ -1,145 +1,106 @@
-import { Grid3X3, Move, ArrowLeftRight, X } from 'lucide-react'
+import { useMemo } from 'react'
+import { X, ChevronUp, ChevronDown } from 'lucide-react'
 import { useBookLayoutStore } from '@/store/bookLayout'
 import type { BlockProps } from '@/types/bookLayout'
+import { detectBlockInfo } from './BookBlock'
 
 interface Props {
   pageIndex: number
   blockId: string
   blockProps: BlockProps | undefined
+  blockHtml: string
+  totalPages: number
   onClose: () => void
 }
 
-export function BookBlockPanel({ pageIndex, blockId, blockProps, onClose }: Props) {
+export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, totalPages, onClose }: Props) {
   const setBlockProps = useBookLayoutStore((s) => s.setBlockProps)
-  const freeBlock = useBookLayoutStore((s) => s.freeBlock)
-  const gridBlock = useBookLayoutStore((s) => s.gridBlock)
+  const moveBlockToPage = useBookLayoutStore((s) => s.moveBlockToPage)
 
-  const isFree = blockProps?.positioning === 'free'
-
-  const handleToggleFree = () => {
-    if (isFree) {
-      gridBlock(pageIndex, blockId)
-    } else {
-      freeBlock(pageIndex, blockId, 10, 10)
-    }
-  }
+  const info = useMemo(() => detectBlockInfo(blockHtml), [blockHtml])
+  const currentSpan = blockProps?.gridSpan ?? 1
 
   return (
     <div className="edm-book-block-panel">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-medium text-[var(--app-fg)]">
-          Bloque: {blockId}
-        </span>
+      {/* Header: icon + type + snippet */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm shrink-0">{info.icon}</span>
+          <span className="text-[11px] font-medium text-[var(--app-fg)] truncate">
+            {info.label}
+          </span>
+          {info.snippet && (
+            <span className="text-[10px] text-[var(--app-fg3)] truncate">
+              — {info.snippet}
+            </span>
+          )}
+        </div>
         <button
           onClick={onClose}
-          className="p-0.5 rounded hover:bg-[var(--app-bg2)] text-[var(--app-fg3)]"
+          className="p-0.5 rounded hover:bg-[var(--app-bg2)] text-[var(--app-fg3)] shrink-0 ml-1"
         >
           <X size={12} />
         </button>
       </div>
 
-      {/* Positioning toggle */}
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          onClick={handleToggleFree}
-          className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-colors ${
-            isFree
-              ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)]'
-              : 'text-[var(--app-fg2)] hover:bg-[var(--app-bg2)]'
-          }`}
-        >
-          {isFree ? (
-            <>
-              <Grid3X3 size={12} /> Volver a grid
-            </>
-          ) : (
-            <>
-              <Move size={12} /> Liberar posicion
-            </>
-          )}
-        </button>
+      {/* Grid span: visual buttons */}
+      <div className="mb-3">
+        <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
+          Columnas
+        </label>
+        <div className="flex items-center gap-1">
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              onClick={() => setBlockProps(pageIndex, blockId, { gridSpan: n })}
+              className={`w-8 h-7 rounded border text-[11px] font-medium transition-colors ${
+                currentSpan === n
+                  ? 'border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                  : 'border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={() => setBlockProps(pageIndex, blockId, { gridSpan: 99 })}
+            className={`px-2 h-7 rounded border text-[11px] font-medium transition-colors ${
+              currentSpan >= 99
+                ? 'border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                : 'border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]'
+            }`}
+          >
+            Full
+          </button>
+        </div>
       </div>
 
-      {/* Grid mode controls */}
-      {!isFree && (
-        <div className="flex items-center gap-2">
-          <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider">
-            Span
-          </label>
-          <div className="flex items-center gap-1">
-            <ArrowLeftRight size={12} className="text-[var(--app-fg3)]" />
-            <input
-              type="number"
-              min={1}
-              max={4}
-              value={blockProps?.gridSpan ?? 1}
-              onChange={(e) => setBlockProps(pageIndex, blockId, { gridSpan: parseInt(e.target.value) || 1 })}
-              className="w-12 px-1.5 py-0.5 rounded border border-[var(--app-border)] bg-[var(--app-bg)]
-                text-[var(--app-fg)] text-[11px] text-center"
-            />
-          </div>
+      {/* Move to page buttons */}
+      <div>
+        <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
+          Mover a página
+        </label>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => moveBlockToPage(blockId, pageIndex - 1, 'end')}
+            disabled={pageIndex <= 0}
+            className={`flex items-center gap-1 px-2 h-7 rounded border text-[11px] transition-colors
+              border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]
+              ${pageIndex <= 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            <ChevronUp size={12} /> Anterior
+          </button>
+          <button
+            onClick={() => moveBlockToPage(blockId, pageIndex + 1, 'start')}
+            disabled={pageIndex >= totalPages - 1}
+            className={`flex items-center gap-1 px-2 h-7 rounded border text-[11px] transition-colors
+              border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]
+              ${pageIndex >= totalPages - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
+          >
+            Siguiente <ChevronDown size={12} />
+          </button>
         </div>
-      )}
-
-      {/* Free mode controls */}
-      {isFree && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-[var(--app-fg3)] block mb-0.5">X (mm)</label>
-              <input
-                type="number"
-                step={0.5}
-                value={blockProps?.x ?? 0}
-                onChange={(e) => setBlockProps(pageIndex, blockId, { x: parseFloat(e.target.value) || 0 })}
-                className="w-full px-1.5 py-0.5 rounded border border-[var(--app-border)] bg-[var(--app-bg)]
-                  text-[var(--app-fg)] text-[11px]"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-[var(--app-fg3)] block mb-0.5">Y (mm)</label>
-              <input
-                type="number"
-                step={0.5}
-                value={blockProps?.y ?? 0}
-                onChange={(e) => setBlockProps(pageIndex, blockId, { y: parseFloat(e.target.value) || 0 })}
-                className="w-full px-1.5 py-0.5 rounded border border-[var(--app-border)] bg-[var(--app-bg)]
-                  text-[var(--app-fg)] text-[11px]"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-[var(--app-fg3)] block mb-0.5">Ancho (mm)</label>
-              <input
-                type="number"
-                step={0.5}
-                value={blockProps?.width ?? ''}
-                placeholder="auto"
-                onChange={(e) => setBlockProps(pageIndex, blockId, {
-                  width: e.target.value ? parseFloat(e.target.value) : undefined,
-                })}
-                className="w-full px-1.5 py-0.5 rounded border border-[var(--app-border)] bg-[var(--app-bg)]
-                  text-[var(--app-fg)] text-[11px]"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-[var(--app-fg3)] block mb-0.5">Alto (mm)</label>
-              <input
-                type="number"
-                step={0.5}
-                value={blockProps?.height ?? ''}
-                placeholder="auto"
-                onChange={(e) => setBlockProps(pageIndex, blockId, {
-                  height: e.target.value ? parseFloat(e.target.value) : undefined,
-                })}
-                className="w-full px-1.5 py-0.5 rounded border border-[var(--app-border)] bg-[var(--app-bg)]
-                  text-[var(--app-fg)] text-[11px]"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

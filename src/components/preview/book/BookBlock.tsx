@@ -1,11 +1,10 @@
-import { useRef, useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, ChevronUp, ChevronDown } from 'lucide-react'
 import type { BookNode } from '@/hooks/useBookPagination'
 import type { BlockProps } from '@/types/bookLayout'
 import { useBookLayoutStore } from '@/store/bookLayout'
-import { pxToMm } from '@/hooks/useBookPagination'
 
 interface BookBlockProps {
   node: BookNode
@@ -14,17 +13,82 @@ interface BookBlockProps {
   isSelected: boolean
   onSelect: () => void
   pageIndex: number
-  freeStyle?: React.CSSProperties
-  containerWidth?: number
-  containerHeight?: number
+  totalPages: number
 }
 
-function detectBlockType(html: string): string | null {
-  const match = html.match(/class="[^"]*edm-(\w+)/)
-  if (match) return match[1]
-  const tagMatch = html.match(/^<(h[1-6]|p|ul|ol|blockquote|pre|table|figure)[\s>]/)
-  if (tagMatch) return tagMatch[1]
-  return null
+interface BlockInfo {
+  type: string
+  label: string
+  snippet: string
+  icon: string
+}
+
+function detectBlockInfo(html: string): BlockInfo {
+  // Try edm class first
+  const edmMatch = html.match(/class="[^"]*edm-(\w+)/)
+  if (edmMatch) {
+    const type = edmMatch[1]
+    const labelMap: Record<string, string> = {
+      exercise: 'Ejercicio',
+      definition: 'Definición',
+      theorem: 'Teorema',
+      example: 'Ejemplo',
+      note: 'Nota',
+      warning: 'Aviso',
+      tip: 'Consejo',
+      important: 'Importante',
+      hero: 'Hero',
+      question: 'Pregunta',
+      vocabulary: 'Vocabulario',
+      timeline: 'Línea temporal',
+      objectives: 'Objetivos',
+      summary: 'Resumen',
+      activity: 'Actividad',
+      reading: 'Lectura',
+      diagram: 'Diagrama',
+      quote: 'Cita',
+    }
+    const snippet = extractSnippet(html)
+    return {
+      type,
+      label: labelMap[type] || type.charAt(0).toUpperCase() + type.slice(1),
+      snippet,
+      icon: '◆',
+    }
+  }
+
+  // Try standard HTML tags
+  const tagMatch = html.match(/^<(h[1-6]|p|ul|ol|blockquote|pre|table|figure|details|hr)[\s>]/)
+  if (tagMatch) {
+    const tag = tagMatch[1]
+    const tagLabelMap: Record<string, [string, string]> = {
+      h1: ['Título 1', '𝐇'],
+      h2: ['Título 2', '𝐇'],
+      h3: ['Título 3', '𝐇'],
+      h4: ['Título 4', '𝐇'],
+      h5: ['Título 5', '𝐇'],
+      h6: ['Título 6', '𝐇'],
+      p: ['Párrafo', '¶'],
+      ul: ['Lista', '•'],
+      ol: ['Lista num.', '#'],
+      blockquote: ['Cita', '❝'],
+      pre: ['Código', '</>'],
+      table: ['Tabla', '▦'],
+      figure: ['Figura', '🖼'],
+      details: ['Desplegable', '▸'],
+      hr: ['Separador', '—'],
+    }
+    const [label, icon] = tagLabelMap[tag] || [tag, '·']
+    const snippet = extractSnippet(html)
+    return { type: tag, label, snippet, icon }
+  }
+
+  return { type: 'div', label: 'Bloque', snippet: extractSnippet(html), icon: '·' }
+}
+
+function extractSnippet(html: string): string {
+  const text = html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  return text.length > 40 ? text.slice(0, 37) + '...' : text
 }
 
 export function BookBlock({
@@ -34,14 +98,8 @@ export function BookBlock({
   isSelected,
   onSelect,
   pageIndex,
-  freeStyle,
-  containerWidth,
-  containerHeight,
+  totalPages,
 }: BookBlockProps) {
-  const isFree = blockProps?.positioning === 'free'
-  const blockRef = useRef<HTMLDivElement>(null)
-
-  // Sortable for grid blocks
   const {
     attributes,
     listeners,
@@ -52,128 +110,36 @@ export function BookBlock({
   } = useSortable({
     id: node.nodeId,
     data: { pageIndex, nodeId: node.nodeId },
-    disabled: !isEditing || isFree,
+    disabled: !isEditing,
   })
 
-  const sortableStyle: React.CSSProperties = isFree
-    ? {}
-    : {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        gridColumn: blockProps?.gridSpan ? `span ${blockProps.gridSpan}` : undefined,
-        order: blockProps?.order,
-      }
+  const sortableStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    gridColumn: blockProps?.gridSpan ? `span ${blockProps.gridSpan}` : undefined,
+    order: blockProps?.order,
+  }
 
-  // ── Free block dragging ──
-  const [isDraggingFree, setIsDraggingFree] = useState(false)
-  const dragStartRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const moveBlockToPage = useBookLayoutStore((s) => s.moveBlockToPage)
 
-  const handleFreeMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!isFree || !isEditing) return
-    e.preventDefault()
+  const handleMovePrev = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    const origX = (blockProps?.x ?? 0) / 25.4 * 96
-    const origY = (blockProps?.y ?? 0) / 25.4 * 96
-    dragStartRef.current = { startX: e.clientX, startY: e.clientY, origX, origY }
-    setIsDraggingFree(true)
+    moveBlockToPage(node.nodeId, pageIndex - 1, 'end')
+  }, [moveBlockToPage, node.nodeId, pageIndex])
 
-    const handleMouseMove = (ev: MouseEvent) => {
-      if (!dragStartRef.current || !blockRef.current) return
-      const dx = ev.clientX - dragStartRef.current.startX
-      const dy = ev.clientY - dragStartRef.current.startY
-      const newX = Math.max(0, dragStartRef.current.origX + dx)
-      const newY = Math.max(0, dragStartRef.current.origY + dy)
-      blockRef.current.style.left = `${newX}px`
-      blockRef.current.style.top = `${newY}px`
-    }
-
-    const handleMouseUp = (ev: MouseEvent) => {
-      if (!dragStartRef.current) return
-      const dx = ev.clientX - dragStartRef.current.startX
-      const dy = ev.clientY - dragStartRef.current.startY
-      let newX = Math.max(0, dragStartRef.current.origX + dx)
-      let newY = Math.max(0, dragStartRef.current.origY + dy)
-      if (containerWidth) newX = Math.min(newX, containerWidth - 20)
-      if (containerHeight) newY = Math.min(newY, containerHeight - 20)
-
-      useBookLayoutStore.getState().setBlockProps(pageIndex, node.nodeId, {
-        positioning: 'free',
-        x: pxToMm(newX),
-        y: pxToMm(newY),
-      })
-
-      dragStartRef.current = null
-      setIsDraggingFree(false)
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-  }, [isFree, isEditing, blockProps, pageIndex, node.nodeId, containerWidth, containerHeight])
-
-  // ── Free block resizing ──
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent, corner: string) => {
-    if (!isFree || !isEditing) return
-    e.preventDefault()
+  const handleMoveNext = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    moveBlockToPage(node.nodeId, pageIndex + 1, 'start')
+  }, [moveBlockToPage, node.nodeId, pageIndex])
 
-    const el = blockRef.current
-    if (!el) return
-    const startW = el.offsetWidth
-    const startH = el.offsetHeight
-    const startX = e.clientX
-    const startY = e.clientY
-
-    const handleMouseMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX
-      const dy = ev.clientY - startY
-      let newW = startW
-      let newH = startH
-
-      if (corner.includes('e')) newW = Math.max(40, startW + dx)
-      if (corner.includes('w')) newW = Math.max(40, startW - dx)
-      if (corner.includes('s')) newH = Math.max(20, startH + dy)
-      if (corner.includes('n')) newH = Math.max(20, startH - dy)
-
-      el.style.width = `${newW}px`
-      el.style.height = `${newH}px`
-    }
-
-    const handleMouseUp = () => {
-      if (!el) return
-      useBookLayoutStore.getState().setBlockProps(pageIndex, node.nodeId, {
-        positioning: 'free',
-        width: pxToMm(el.offsetWidth),
-        height: pxToMm(el.offsetHeight),
-      })
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-  }, [isFree, isEditing, pageIndex, node.nodeId])
-
-  const blockType = isEditing ? detectBlockType(node.html) : null
-
-  const combinedRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      (blockRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-      if (!isFree) setNodeRef(el)
-    },
-    [isFree, setNodeRef],
-  )
+  const blockInfo = isEditing ? detectBlockInfo(node.html) : null
 
   return (
     <div
-      ref={combinedRef}
-      className={`edm-book-block ${isEditing ? 'edm-book-block-editing' : ''} ${isSelected ? 'edm-book-block-selected' : ''} ${isDragging || isDraggingFree ? 'edm-book-block-dragging' : ''}`}
-      style={{
-        ...sortableStyle,
-        ...(freeStyle || {}),
-      }}
+      ref={setNodeRef}
+      className={`edm-book-block ${isEditing ? 'edm-book-block-editing' : ''} ${isSelected ? 'edm-book-block-selected' : ''} ${isDragging ? 'edm-book-block-dragging' : ''}`}
+      style={sortableStyle}
       onClick={(e) => {
         if (isEditing) {
           e.stopPropagation()
@@ -182,8 +148,8 @@ export function BookBlock({
       }}
       data-edm-node-id={node.nodeId}
     >
-      {/* Drag handle for grid blocks */}
-      {isEditing && !isFree && (
+      {/* Drag handle */}
+      {isEditing && (
         <div
           className="edm-book-block-handle"
           {...attributes}
@@ -193,39 +159,46 @@ export function BookBlock({
         </div>
       )}
 
-      {/* Free block drag area */}
-      {isEditing && isFree && (
-        <div
-          className="edm-book-block-handle edm-book-block-handle-free"
-          onMouseDown={handleFreeMouseDown}
-        >
-          <GripVertical size={14} />
+      {/* Block type badge */}
+      {isEditing && blockInfo && (
+        <div className="edm-book-block-badge">
+          <span className="edm-book-block-badge-icon">{blockInfo.icon}</span>
+          {' '}{blockInfo.label}
+          {blockInfo.snippet && (
+            <span className="edm-book-block-badge-snippet"> — {blockInfo.snippet}</span>
+          )}
         </div>
       )}
 
-      {/* Block type badge */}
-      {isEditing && blockType && (
-        <div className="edm-book-block-badge">{blockType}</div>
-      )}
-
       {/* Block content */}
-      <div
-        dangerouslySetInnerHTML={{ __html: node.html }}
-      />
+      <div dangerouslySetInnerHTML={{ __html: node.html }} />
 
-      {/* Resize handles for free blocks */}
-      {isEditing && isFree && isSelected && (
-        <>
-          <div className="edm-book-resize-handle edm-book-resize-se" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
-          <div className="edm-book-resize-handle edm-book-resize-sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
-          <div className="edm-book-resize-handle edm-book-resize-ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
-          <div className="edm-book-resize-handle edm-book-resize-nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
-          <div className="edm-book-resize-handle edm-book-resize-e" onMouseDown={(e) => handleResizeMouseDown(e, 'e')} />
-          <div className="edm-book-resize-handle edm-book-resize-w" onMouseDown={(e) => handleResizeMouseDown(e, 'w')} />
-          <div className="edm-book-resize-handle edm-book-resize-s" onMouseDown={(e) => handleResizeMouseDown(e, 's')} />
-          <div className="edm-book-resize-handle edm-book-resize-n" onMouseDown={(e) => handleResizeMouseDown(e, 'n')} />
-        </>
+      {/* Move to page buttons */}
+      {isEditing && isSelected && (
+        <div className="edm-book-block-actions">
+          {pageIndex > 0 && (
+            <button
+              onClick={handleMovePrev}
+              className="edm-book-block-action-btn"
+              title="Mover a página anterior"
+            >
+              <ChevronUp size={14} />
+            </button>
+          )}
+          {pageIndex < totalPages - 1 && (
+            <button
+              onClick={handleMoveNext}
+              className="edm-book-block-action-btn"
+              title="Mover a página siguiente"
+            >
+              <ChevronDown size={14} />
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
 }
+
+export { detectBlockInfo }
+export type { BlockInfo }

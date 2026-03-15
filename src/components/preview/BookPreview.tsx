@@ -16,8 +16,9 @@ import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import { generateThemeCss } from './previewTheme'
 import { BookPage } from './book/BookPage'
 import { BookToolbar } from './book/BookToolbar'
-import { BookLayoutSelector } from './book/BookLayoutSelector'
 import { BookBlockPanel } from './book/BookBlockPanel'
+import { BookThumbnails } from './book/BookThumbnails'
+import { detectBlockInfo } from './book/BookBlock'
 import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
@@ -49,7 +50,6 @@ export function BookPreview() {
   } = useBookPagination()
 
   const contentWidthPx = pageWidthPx - paddingLeft - paddingRight
-  const contentHeightPx = pageHeightPx - paddingTop - paddingBottom
 
   const themeCssVars = useMemo(() => generateThemeCss(themeConfig), [themeConfig])
 
@@ -154,11 +154,34 @@ export function BookPreview() {
     return layoutConfig.pages[selectedBlockPage]?.blockProps[selectedBlockId]
   }, [selectedBlockPage, layoutConfig, selectedBlockId])
 
+  // Get HTML for selected block (for the panel)
+  const selectedBlockHtml = useMemo(() => {
+    if (!selectedBlockId) return ''
+    for (const pageNodes of pages) {
+      const node = pageNodes.find((n) => n.nodeId === selectedBlockId)
+      if (node) return node.html
+    }
+    return ''
+  }, [selectedBlockId, pages])
+
   // Clamp selectedPageIndex to valid range
   const safePageIndex = pages.length > 0 ? Math.min(selectedPageIndex, pages.length - 1) : 0
 
-  // Current page layout for layout selector
-  const currentPageLayout = layoutConfig?.pages[safePageIndex]?.layout ?? 'stack'
+  // Page layouts array for thumbnails
+  const pageLayouts = useMemo(
+    () => pages.map((_, i) => layoutConfig?.pages[i]?.layout ?? 'stack'),
+    [pages, layoutConfig],
+  )
+
+  // Drag overlay: show block info
+  const dragOverlayInfo = useMemo(() => {
+    if (!activeDragId) return null
+    for (const pageNodes of pages) {
+      const node = pageNodes.find((n) => n.nodeId === activeDragId)
+      if (node) return detectBlockInfo(node.html)
+    }
+    return null
+  }, [activeDragId, pages])
 
   if (!html) {
     return (
@@ -196,67 +219,128 @@ export function BookPreview() {
       />
       <style>{`.edm-book-measure { ${bookThemeCss} }`}</style>
 
-      {/* Scrollable page area — shows only the selected page */}
-      <div className="flex-1 overflow-auto flex items-center justify-center">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="edm-book-pages" style={{ padding: '32px 16px' }}>
-            {pages.length > 0 && (() => {
-              const i = safePageIndex
-              const pageNodes = pages[i]
-              if (!pageNodes) return null
-              const pageConf = layoutConfig?.pages[i]
-              const layout = pageConf?.layout ?? 'stack'
-              const blockProps = pageConf?.blockProps ?? {}
+      {/* Main area: thumbnails sidebar + page view */}
+      <div className="flex-1 overflow-hidden flex flex-row">
+        {/* Thumbnails sidebar */}
+        <BookThumbnails
+          pages={pages}
+          pageLayouts={pageLayouts}
+          currentPage={safePageIndex}
+          onSelectPage={setSelectedPageIndex}
+          pageWidthPx={pageWidthPx}
+          pageHeightPx={pageHeightPx}
+          bookThemeCss={bookThemeCss}
+        />
 
-              return (
-                <BookPage
-                  key={i}
-                  pageIndex={i}
-                  nodes={pageNodes}
-                  layout={layout}
-                  blockProps={blockProps}
-                  isEditing={isEditing}
-                  selectedBlockId={selectedBlockId}
-                  onSelectBlock={(id) => {
-                    selectBlock(id)
-                    setSelectedPageIndex(i)
-                  }}
-                  style={{
-                    width: `${pageWidthPx}px`,
-                    minHeight: `${pageHeightPx}px`,
-                    paddingTop: `${paddingTop}px`,
-                    paddingBottom: `${paddingBottom}px`,
-                    paddingLeft: `${paddingLeft}px`,
-                    paddingRight: `${paddingRight}px`,
-                  }}
-                  bookThemeCss={bookThemeCss}
-                  contentWidthPx={contentWidthPx}
-                  contentHeightPx={contentHeightPx}
-                />
-              )
-            })()}
-          </div>
+        {/* Scrollable page area */}
+        <div className="flex-1 overflow-auto">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            {isEditing ? (
+              /* Editing: show all pages vertically for cross-page DnD */
+              <div className="edm-book-pages" style={{ padding: '48px 16px 32px' }}>
+                {pages.map((pageNodes, i) => {
+                  const pageConf = layoutConfig?.pages[i]
+                  const layout = pageConf?.layout ?? 'stack'
+                  const blockProps = pageConf?.blockProps ?? {}
 
-          <DragOverlay>
-            {activeDragId ? (
-              <div className="edm-book-block-dragging" style={{
-                background: 'white',
-                padding: '8px',
-                borderRadius: '4px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-                opacity: 0.8,
-                maxWidth: '300px',
-              }}>
-                <span className="text-xs text-gray-500">{activeDragId}</span>
+                  return (
+                    <BookPage
+                      key={i}
+                      pageIndex={i}
+                      nodes={pageNodes}
+                      layout={layout}
+                      blockProps={blockProps}
+                      isEditing={isEditing}
+                      selectedBlockId={selectedBlockId}
+                      onSelectBlock={(id) => {
+                        selectBlock(id)
+                        setSelectedPageIndex(i)
+                      }}
+                      style={{
+                        width: `${pageWidthPx}px`,
+                        minHeight: `${pageHeightPx}px`,
+                        paddingTop: `${paddingTop}px`,
+                        paddingBottom: `${paddingBottom}px`,
+                        paddingLeft: `${paddingLeft}px`,
+                        paddingRight: `${paddingRight}px`,
+                      }}
+                      bookThemeCss={bookThemeCss}
+                      totalPages={pages.length}
+                      onChangeLayout={(layout) => setPageLayout(i, layout)}
+                    />
+                  )
+                })}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            ) : (
+              /* Viewing: show only the selected page */
+              <div className="edm-book-pages flex items-center justify-center min-h-full" style={{ padding: '32px 16px' }}>
+                {pages.length > 0 && (() => {
+                  const i = safePageIndex
+                  const pageNodes = pages[i]
+                  if (!pageNodes) return null
+                  const pageConf = layoutConfig?.pages[i]
+                  const layout = pageConf?.layout ?? 'stack'
+                  const blockProps = pageConf?.blockProps ?? {}
+
+                  return (
+                    <BookPage
+                      key={i}
+                      pageIndex={i}
+                      nodes={pageNodes}
+                      layout={layout}
+                      blockProps={blockProps}
+                      isEditing={false}
+                      selectedBlockId={null}
+                      onSelectBlock={() => {}}
+                      style={{
+                        width: `${pageWidthPx}px`,
+                        minHeight: `${pageHeightPx}px`,
+                        paddingTop: `${paddingTop}px`,
+                        paddingBottom: `${paddingBottom}px`,
+                        paddingLeft: `${paddingLeft}px`,
+                        paddingRight: `${paddingRight}px`,
+                      }}
+                      bookThemeCss={bookThemeCss}
+                      totalPages={pages.length}
+                    />
+                  )
+                })()}
+              </div>
+            )}
+
+            <DragOverlay>
+              {activeDragId && dragOverlayInfo ? (
+                <div style={{
+                  background: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                  opacity: 0.9,
+                  maxWidth: '300px',
+                  border: '1px solid #e5e7eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}>
+                  <span style={{ fontSize: '14px' }}>{dragOverlayInfo.icon}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>
+                    {dragOverlayInfo.label}
+                  </span>
+                  {dragOverlayInfo.snippet && (
+                    <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                      — {dragOverlayInfo.snippet}
+                    </span>
+                  )}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
       </div>
 
       {themeConfig.customCss && <style>{themeConfig.customCss}</style>}
@@ -267,15 +351,9 @@ export function BookPreview() {
           pageIndex={selectedBlockPage}
           blockId={selectedBlockId}
           blockProps={selectedBlockProps ?? DEFAULT_BLOCK_PROPS}
+          blockHtml={selectedBlockHtml}
+          totalPages={pages.length}
           onClose={() => selectBlock(null)}
-        />
-      )}
-
-      {/* Layout selector (when editing and a page is selected) */}
-      {isEditing && layoutConfig && (
-        <BookLayoutSelector
-          currentLayout={currentPageLayout}
-          onSelectLayout={(layout) => setPageLayout(safePageIndex, layout)}
         />
       )}
 
