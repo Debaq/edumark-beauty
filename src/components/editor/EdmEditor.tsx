@@ -35,10 +35,13 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
   }))
 
   // Función para decodificar el fuente edm a HTML (async con debounce)
+  // setSource se llama DENTRO del debounce para no disparar re-renders
+  // en cada tecla (useSlides, useBookPagination, Panels escuchan source)
   const decodeSource = useCallback(
     (text: string) => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(async () => {
+        setSource(text)
         try {
           const html = await decodeAsync(text, { mode: 'teacher' })
           setHtml(html)
@@ -47,7 +50,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
         }
       }, 300)
     },
-    [setHtml]
+    [setSource, setHtml]
   )
 
   // Crear el editor
@@ -57,7 +60,6 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const newSource = update.state.doc.toString()
-        setSource(newSource)
         decodeSource(newSource)
       }
     })
