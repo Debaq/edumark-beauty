@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ContentMode, PageConfig, SlideConfig, Slide, SlideTemplate } from '@/types/contentMode'
+import type { ContentMode, PageConfig, SlideConfig, Slide, SlideTemplate, FreeTextMode } from '@/types/contentMode'
 import { PAPER_SIZES } from '@/types/contentMode'
 import { updateSlideMetadataInSource } from '@/lib/slideParser'
 import { useDocumentStore } from '@/store/document'
@@ -25,6 +25,7 @@ interface ContentModeStore {
   setSlideTemplate: (index: number, template: SlideTemplate) => void
   setSlideZoom: (index: number, zoom: number) => void
   clearSlideZoom: (index: number) => void
+  setFreeTextMode: (mode: FreeTextMode) => void
   nextSlide: () => void
   prevSlide: () => void
 }
@@ -93,6 +94,9 @@ export const useContentModeStore = create<ContentModeStore>((set) => ({
       useDocumentStore.getState().setSource(newSource)
     }
   },
+  setFreeTextMode: (mode) => set((s) => ({
+    slideConfig: { ...s.slideConfig, freeTextMode: mode },
+  })),
   nextSlide: () => set((s) => ({
     currentSlide: Math.min(s.currentSlide + 1, s.slides.length - 1),
   })),

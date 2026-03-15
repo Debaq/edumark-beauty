@@ -2,7 +2,9 @@ import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Minus, Plus, Maximize, Minimize, MonitorPlay,
+  Eye, EyeOff, StickyNote,
 } from 'lucide-react'
+import type { FreeTextMode } from '@/types/contentMode'
 import { useContentModeStore } from '@/store/contentMode'
 import { useThemeStore } from '@/store/theme'
 import { generateThemeCss } from './previewTheme'
@@ -33,6 +35,8 @@ export function PresentationPreview() {
   const slideZoomOverrides = useContentModeStore((s) => s.slideZoomOverrides)
   const setSlideZoom = useContentModeStore((s) => s.setSlideZoom)
   const clearSlideZoom = useContentModeStore((s) => s.clearSlideZoom)
+  const freeTextMode = useContentModeStore((s) => s.slideConfig.freeTextMode) ?? 'show'
+  const setFreeTextMode = useContentModeStore((s) => s.setFreeTextMode)
 
   useSlides()
 
@@ -377,6 +381,20 @@ export function PresentationPreview() {
               </span>
             </div>
 
+            {/* Speaker notes */}
+            {slide.notes && (
+              <div className="flex flex-col gap-1 flex-1 min-h-0">
+                <span className="text-xs text-neutral-400 uppercase tracking-wider">
+                  Notas
+                </span>
+                <div
+                  className="edm-preview text-sm text-neutral-200 overflow-y-auto flex-1 leading-relaxed"
+                  style={{ fontSize: '13px' }}
+                  dangerouslySetInnerHTML={{ __html: slide.notes }}
+                />
+              </div>
+            )}
+
             <div className="mt-auto">
               <button
                 onClick={exitFullscreen}
@@ -539,6 +557,45 @@ export function PresentationPreview() {
                 }`}
               >
                 Auto
+              </button>
+            </div>
+          )}
+
+          {/* Free text mode toggle (hidden in fullscreen) */}
+          {!isFullscreen && (
+            <div className="flex items-center gap-0.5 border border-[var(--app-border)] rounded-lg overflow-hidden">
+              <button
+                onClick={() => setFreeTextMode('show')}
+                title="Mostrar texto libre"
+                className={`p-1.5 transition-colors ${
+                  freeTextMode === 'show'
+                    ? 'text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                    : 'text-[var(--app-fg3)] hover:text-[var(--app-fg2)]'
+                }`}
+              >
+                <Eye size={14} />
+              </button>
+              <button
+                onClick={() => setFreeTextMode('hide')}
+                title="Ocultar texto libre"
+                className={`p-1.5 transition-colors ${
+                  freeTextMode === 'hide'
+                    ? 'text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                    : 'text-[var(--app-fg3)] hover:text-[var(--app-fg2)]'
+                }`}
+              >
+                <EyeOff size={14} />
+              </button>
+              <button
+                onClick={() => setFreeTextMode('notes')}
+                title="Texto libre como notas del presentador"
+                className={`p-1.5 transition-colors ${
+                  freeTextMode === 'notes'
+                    ? 'text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                    : 'text-[var(--app-fg3)] hover:text-[var(--app-fg2)]'
+                }`}
+              >
+                <StickyNote size={14} />
               </button>
             </div>
           )}
