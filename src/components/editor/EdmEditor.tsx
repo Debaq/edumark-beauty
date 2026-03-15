@@ -9,6 +9,7 @@ import { decode } from 'edumark-js'
 
 export interface EdmEditorHandle {
   getScroller: () => HTMLElement | null
+  getView: () => EditorView | null
 }
 
 export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) {
@@ -21,6 +22,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
   useImperativeHandle(ref, () => ({
     getScroller: () =>
       containerRef.current?.querySelector<HTMLElement>('.cm-scroller') ?? null,
+    getView: () => viewRef.current,
   }))
 
   // Función para decodificar el fuente edm a HTML

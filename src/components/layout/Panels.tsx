@@ -4,6 +4,51 @@ import { useUIStore } from '@/store/ui'
 import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
 import { Preview, type PreviewHandle } from '@/components/preview/Preview'
 
+/** Extract heading line numbers from .edm source */
+function extractSourceHeadings(source: string): number[] {
+  const lines = source.split('\n')
+  const headings: number[] = []
+  let inFence = false
+  let inBlock = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // Skip fenced code blocks
+    if (line.startsWith('```')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+
+    // Skip ::: blocks (content inside won't produce top-level headings)
+    if (/^:{3,}\s*\S+/.test(line)) {
+      inBlock = true
+      continue
+    }
+    if (/^:{3,}\s*$/.test(line)) {
+      inBlock = false
+      continue
+    }
+    if (inBlock) continue
+
+    // Match ATX headings
+    if (/^#{1,6}\s/.test(line)) {
+      headings.push(i)
+    }
+  }
+  return headings
+}
+
+/** Get heading elements from the preview DOM with their offsets */
+function getPreviewHeadings(container: HTMLElement): HTMLElement[] {
+  // Only top-level headings in .edm-preview, not inside cards
+  const all = container.querySelectorAll<HTMLElement>(
+    '.edm-preview > h1, .edm-preview > h2, .edm-preview > h3, .edm-preview > h4, .edm-preview > h5, .edm-preview > h6'
+  )
+  return Array.from(all)
+}
+
 export function Panels() {
   const viewMode = useUIStore((s) => s.viewMode)
   const scrollSync = useUIStore((s) => s.scrollSync)
@@ -40,45 +85,106 @@ export function Panels() {
     document.addEventListener('mouseup', handleMouseUp)
   }, [])
 
-  // Scroll sync logic
+  // Heading-based scroll sync
   useEffect(() => {
     if (viewMode !== 'split' || !scrollSync) return
 
-    const getScrollPercent = (el: HTMLElement) => {
-      const max = el.scrollHeight - el.clientHeight
-      return max > 0 ? el.scrollTop / max : 0
-    }
+    // Small delay to let the DOM settle after content changes
+    const timer = setTimeout(() => {
+      const editorScroller = editorRef.current?.getScroller()
+      const previewScroller = previewRef.current?.getScroller()
+      if (!editorScroller || !previewScroller) return
 
-    const setScrollPercent = (el: HTMLElement, percent: number) => {
-      const max = el.scrollHeight - el.clientHeight
-      el.scrollTop = percent * max
-    }
+      const editorView = editorRef.current?.getView?.()
 
-    const editorScroller = editorRef.current?.getScroller()
-    const previewScroller = previewRef.current?.getScroller()
-    if (!editorScroller || !previewScroller) return
+      // Build heading mapping
+      const buildMap = () => {
+        if (!editorView) return null
 
-    const onEditorScroll = () => {
-      if (isSyncing.current) return
-      isSyncing.current = true
-      setScrollPercent(previewScroller, getScrollPercent(editorScroller))
-      requestAnimationFrame(() => { isSyncing.current = false })
-    }
+        const source = editorView.state.doc.toString()
+        const sourceLines = extractSourceHeadings(source)
+        const previewHeadings = getPreviewHeadings(previewScroller)
 
-    const onPreviewScroll = () => {
-      if (isSyncing.current) return
-      isSyncing.current = true
-      setScrollPercent(editorScroller, getScrollPercent(previewScroller))
-      requestAnimationFrame(() => { isSyncing.current = false })
-    }
+        // Match by order — min of both lengths
+        const count = Math.min(sourceLines.length, previewHeadings.length)
+        if (count === 0) return null
 
-    editorScroller.addEventListener('scroll', onEditorScroll, { passive: true })
-    previewScroller.addEventListener('scroll', onPreviewScroll, { passive: true })
+        const map: { editorY: number; previewY: number }[] = []
 
-    return () => {
-      editorScroller.removeEventListener('scroll', onEditorScroll)
-      previewScroller.removeEventListener('scroll', onPreviewScroll)
-    }
+        for (let i = 0; i < count; i++) {
+          // Editor: get pixel offset of the heading line
+          const lineInfo = editorView.state.doc.line(sourceLines[i] + 1) // 1-based
+          const editorY = editorView.lineBlockAt(lineInfo.from).top
+
+          // Preview: offset relative to scroller
+          const previewY = previewHeadings[i].offsetTop
+          map.push({ editorY, previewY })
+        }
+
+        // Add end boundaries
+        const editorMax = editorScroller.scrollHeight
+        const previewMax = previewScroller.scrollHeight
+        map.push({ editorY: editorMax, previewY: previewMax })
+
+        return map
+      }
+
+      const interpolate = (
+        scrollTop: number,
+        fromKey: 'editorY' | 'previewY',
+        toKey: 'editorY' | 'previewY',
+        map: { editorY: number; previewY: number }[]
+      ): number => {
+        // Find the segment the scroll position falls in
+        let i = 0
+        while (i < map.length - 1 && map[i + 1][fromKey] <= scrollTop) i++
+
+        if (i >= map.length - 1) return map[map.length - 1][toKey]
+
+        const from0 = map[i][fromKey]
+        const from1 = map[i + 1][fromKey]
+        const to0 = map[i][toKey]
+        const to1 = map[i + 1][toKey]
+
+        const range = from1 - from0
+        if (range <= 0) return to0
+
+        const t = (scrollTop - from0) / range
+        return to0 + t * (to1 - to0)
+      }
+
+      const onEditorScroll = () => {
+        if (isSyncing.current) return
+        const map = buildMap()
+        if (!map) return
+
+        isSyncing.current = true
+        const targetY = interpolate(editorScroller.scrollTop, 'editorY', 'previewY', map)
+        previewScroller.scrollTop = targetY
+        requestAnimationFrame(() => { isSyncing.current = false })
+      }
+
+      const onPreviewScroll = () => {
+        if (isSyncing.current) return
+        const map = buildMap()
+        if (!map) return
+
+        isSyncing.current = true
+        const targetY = interpolate(previewScroller.scrollTop, 'previewY', 'editorY', map)
+        editorScroller.scrollTop = targetY
+        requestAnimationFrame(() => { isSyncing.current = false })
+      }
+
+      editorScroller.addEventListener('scroll', onEditorScroll, { passive: true })
+      previewScroller.addEventListener('scroll', onPreviewScroll, { passive: true })
+
+      return () => {
+        editorScroller.removeEventListener('scroll', onEditorScroll)
+        previewScroller.removeEventListener('scroll', onPreviewScroll)
+      }
+    }, 200)
+
+    return () => clearTimeout(timer)
   }, [viewMode, scrollSync])
 
   if (viewMode === 'editor') {
