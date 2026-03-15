@@ -38,6 +38,7 @@ const BG_COLORS = [
 const EDUMARK_BLOCKS = [
   {
     category: 'Estructura', items: [
+      { type: 'hero', label: 'Portada', color: '#f59e0b', content: 'title: "Titulo del documento"\nauthor: "Autor"\nsubject: "Materia"\nlevel: "Nivel"\n- Tema 1\n- Tema 2' },
       { type: 'objective', label: 'Objetivo', color: '#fcd34d', content: 'Objetivo aqui' },
       { type: 'definition', label: 'Definicion', color: '#60a5fa', content: 'Definicion aqui' },
       { type: 'key-concept', label: 'Concepto clave', color: '#f472b6', content: 'Concepto aqui' },
