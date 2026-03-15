@@ -1,9 +1,8 @@
-import { useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
+import { useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
-import katex from 'katex'
 
 export interface PreviewHandle {
   getScroller: () => HTMLElement | null
@@ -21,54 +20,6 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
 
   // Generar CSS del tema como custom properties
   const themeCssVars = useMemo(() => generateThemeCss(themeConfig), [themeConfig])
-
-  // Renderizar KaTeX en elementos con data-math tras cada cambio de HTML
-  useEffect(() => {
-    if (!containerRef.current) return
-    const mathElements = containerRef.current.querySelectorAll('[data-math]')
-    mathElements.forEach((el) => {
-      const tex = el.getAttribute('data-math') || el.textContent || ''
-      const displayMode = el.tagName === 'DIV' || el.classList.contains('katex-display')
-      try {
-        el.innerHTML = katex.renderToString(tex, {
-          displayMode,
-          throwOnError: false,
-          output: 'html',
-        })
-      } catch {
-        // Dejar el texto original si falla
-      }
-    })
-  }, [html])
-
-  // Renderizar diagramas Mermaid
-  useEffect(() => {
-    if (!containerRef.current) return
-    const mermaidBlocks = containerRef.current.querySelectorAll('pre.mermaid, code.language-mermaid')
-    if (mermaidBlocks.length === 0) return
-
-    // Importar mermaid de forma dinámica
-    import('mermaid').then((mermaidModule) => {
-      const mermaid = mermaidModule.default
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: themeConfig.bg === '#ffffff' || themeConfig.bg === '#f5f0e8' ? 'default' : 'dark',
-      })
-
-      mermaidBlocks.forEach(async (el, i) => {
-        const code = el.textContent || ''
-        try {
-          const { svg } = await mermaid.render(`mermaid-${Date.now()}-${i}`, code)
-          const wrapper = document.createElement('div')
-          wrapper.className = 'edm-diagram'
-          wrapper.innerHTML = svg
-          el.replaceWith(wrapper)
-        } catch {
-          // Dejar el bloque de código si falla
-        }
-      })
-    })
-  }, [html, themeConfig.bg])
 
   if (!html) {
     return (

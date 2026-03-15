@@ -3,7 +3,7 @@ import { Upload, FileText, Sparkles, Download, HelpCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useDocumentStore } from '@/store/document'
 import { useUIStore } from '@/store/ui'
-import { decode } from 'edumark-js'
+import { decodeAsync } from 'edumark-js'
 
 const EXAMPLES_BASE_URL = 'https://raw.githubusercontent.com/Debaq/edumark/main/ejemplos/'
 const SKILLS_API_URL = 'https://api.github.com/repos/Debaq/edumark/contents/llms'
@@ -27,11 +27,11 @@ export function Welcome() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadContent = useCallback(
-    (text: string, name: string) => {
+    async (text: string, name: string) => {
       setSource(text)
       setFilename(name)
       try {
-        setHtml(decode(text, { mode: 'teacher' }))
+        setHtml(await decodeAsync(text, { mode: 'teacher' }))
       } catch {
         setHtml('<p style="color:#f87171;">Error al parsear el documento.</p>')
       }

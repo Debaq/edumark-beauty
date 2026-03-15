@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore } from '@/store/ui'
-import { decode } from 'edumark-js'
+import { decodeAsync } from 'edumark-js'
 
 const REPO_BASE = 'https://raw.githubusercontent.com/Debaq/edumark/main'
 const DOCS_API = 'https://api.github.com/repos/Debaq/edumark/contents/docs'
@@ -81,8 +81,9 @@ export function HelpModal() {
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           return res.text()
         })
-        .then((md) => {
-          setCache((prev) => ({ ...prev, [tab.key]: decode(md, { mode: 'student' }) }))
+        .then(async (md) => {
+          const html = await decodeAsync(md, { mode: 'student' })
+          setCache((prev) => ({ ...prev, [tab.key]: html }))
         })
         .catch(() => setError(true))
         .finally(() => setLoading(false))

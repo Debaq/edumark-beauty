@@ -5,7 +5,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { useDocumentStore } from '@/store/document'
-import { decode } from 'edumark-js'
+import { decodeAsync } from 'edumark-js'
 
 export interface EdmEditorHandle {
   getScroller: () => HTMLElement | null
@@ -15,6 +15,7 @@ export interface EdmEditorHandle {
 export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const source = useDocumentStore((s) => s.source)
   const setSource = useDocumentStore((s) => s.setSource)
   const setHtml = useDocumentStore((s) => s.setHtml)
@@ -25,16 +26,18 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
     getView: () => viewRef.current,
   }))
 
-  // Función para decodificar el fuente edm a HTML
+  // Función para decodificar el fuente edm a HTML (async con debounce)
   const decodeSource = useCallback(
     (text: string) => {
-      try {
-        const html = decode(text, { mode: 'teacher' })
-        setHtml(html)
-      } catch {
-        // Si falla el parseo, mostramos lo que haya
-        setHtml('<p style="color: #f87171;">Error al parsear el documento.</p>')
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const html = await decodeAsync(text, { mode: 'teacher' })
+          setHtml(html)
+        } catch {
+          setHtml('<p style="color: #f87171;">Error al parsear el documento.</p>')
+        }
+      }, 300)
     },
     [setHtml]
   )
@@ -78,6 +81,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
     if (source) decodeSource(source)
 
     return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
       view.destroy()
       viewRef.current = null
     }
