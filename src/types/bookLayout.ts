@@ -1,10 +1,14 @@
 export type PageLayout = 'stack' | 'two-columns'
 
+export type TextAlign = 'left' | 'center' | 'right' | 'justify'
+
 export interface BlockProps {
   /** If true, block spans all columns (column-span: all) */
   fullWidth?: boolean
   /** Order within the page */
   order?: number
+  /** Text alignment override for this block */
+  textAlign?: TextAlign
 }
 
 export interface PageConfig {
@@ -21,6 +25,10 @@ export interface BookLayoutConfig {
   pages: PageConfig[]
   /** Gap between columns in px (default 24) */
   columnGap?: number
+  /** Default text alignment for the whole document */
+  textAlign?: TextAlign
+  /** Whether to show horizontal rules (---) in book mode (default false) */
+  showHr?: boolean
 }
 
 export const DEFAULT_BLOCK_PROPS: BlockProps = {}

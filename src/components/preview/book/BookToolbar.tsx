@@ -1,6 +1,7 @@
 import {
   Pencil, PencilOff, ChevronLeft, ChevronRight,
   RotateCcw, ZoomIn, ZoomOut, Maximize2, ArrowLeftRight,
+  Settings,
 } from 'lucide-react'
 import { useBookLayoutStore } from '@/store/bookLayout'
 
@@ -9,6 +10,8 @@ interface BookToolbarProps {
   totalPages: number
   onPageChange: (page: number) => void
   onToggleEditing: () => void
+  showConfig: boolean
+  onToggleConfig: () => void
   zoom: number
   onZoomIn: () => void
   onZoomOut: () => void
@@ -18,6 +21,7 @@ interface BookToolbarProps {
 
 export function BookToolbar({
   currentPage, totalPages, onPageChange, onToggleEditing,
+  showConfig, onToggleConfig,
   zoom, onZoomIn, onZoomOut, onFitWidth, onFitHeight,
 }: BookToolbarProps) {
   const isEditing = useBookLayoutStore((s) => s.isEditing)
@@ -44,6 +48,18 @@ export function BookToolbar({
           }`}
         >
           {isEditing ? <PencilOff size={16} /> : <Pencil size={16} />}
+        </button>
+
+        <button
+          onClick={onToggleConfig}
+          title="Configuracion de pagina"
+          className={`p-1.5 rounded-lg transition-colors ${
+            showConfig
+              ? 'text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+              : 'text-[var(--app-fg2)] hover:bg-[var(--app-bg2)]'
+          }`}
+        >
+          <Settings size={16} />
         </button>
 
         {layoutConfig?.isManual && (

@@ -25,6 +25,7 @@ interface BookPageProps {
   bookThemeCss: string
   totalPages: number
   columnGap: number
+  docTextAlign?: string
   onChangeLayout?: (layout: PageLayout) => void
 }
 
@@ -40,6 +41,7 @@ export function BookPage({
   bookThemeCss,
   totalPages,
   columnGap,
+  docTextAlign,
   onChangeLayout,
 }: BookPageProps) {
   const droppableId = `page-${pageIndex}`
@@ -51,8 +53,8 @@ export function BookPage({
   // In editing mode: NEVER apply column-count (breaks dnd-kit)
   // Only apply columns in preview mode
   const contentStyle: React.CSSProperties = isEditing
-    ? { minHeight: 0 }
-    : { ...getLayoutContentCss(layout, columnGap), minHeight: 0 }
+    ? { minHeight: 0, textAlign: docTextAlign as React.CSSProperties['textAlign'] }
+    : { ...getLayoutContentCss(layout, columnGap), minHeight: 0, textAlign: docTextAlign as React.CSSProperties['textAlign'] }
 
   return (
     <div

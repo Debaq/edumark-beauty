@@ -297,6 +297,21 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
+/* ── Config panel ── */
+
+.edm-book-config-panel {
+  position: fixed;
+  bottom: 80px;
+  left: 160px;
+  z-index: 1000;
+  width: 240px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--app-bg1, #1e1e1e);
+  border: 1px solid var(--app-border, #333);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
 /* ========================================
    Thumbnails sidebar
    ======================================== */

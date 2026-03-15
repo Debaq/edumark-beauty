@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { BookLayoutConfig, PageLayout, BlockProps, PageConfig } from '@/types/bookLayout'
+import type { BookLayoutConfig, PageLayout, BlockProps, PageConfig, TextAlign } from '@/types/bookLayout'
 import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import { updateBookLayoutInSource, removeBookLayoutFromSource } from '@/lib/bookLayoutParser'
 import { useDocumentStore } from '@/store/document'
@@ -31,6 +31,8 @@ interface BookLayoutStore {
   /** Initialize manual layout from auto-paginated pages */
   initFromAutoPages: (pages: { nodeId: string }[][]) => void
   setColumnGap: (gap: number) => void
+  setDocTextAlign: (align: TextAlign) => void
+  setShowHr: (show: boolean) => void
   /** Force immediate persist (e.g. before PDF export) */
   flushPersist: () => void
 }
@@ -232,10 +234,26 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
     doPersist(config)
   },
 
+  setShowHr: (show) => {
+    const { layoutConfig } = get()
+    if (!layoutConfig) return
+    const newConfig = { ...layoutConfig, showHr: show }
+    set({ layoutConfig: newConfig })
+    debouncedPersist(newConfig)
+  },
+
   setColumnGap: (gap) => {
     const { layoutConfig } = get()
     if (!layoutConfig) return
     const newConfig = { ...layoutConfig, columnGap: gap }
+    set({ layoutConfig: newConfig })
+    debouncedPersist(newConfig)
+  },
+
+  setDocTextAlign: (align) => {
+    const { layoutConfig } = get()
+    if (!layoutConfig) return
+    const newConfig = { ...layoutConfig, textAlign: align }
     set({ layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },

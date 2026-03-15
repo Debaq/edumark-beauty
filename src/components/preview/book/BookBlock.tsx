@@ -125,6 +125,7 @@ export function BookBlock({
     transition,
     opacity: isDragging ? 0.5 : 1,
     order: blockProps?.order,
+    textAlign: blockProps?.textAlign,
   }
 
   // In two-columns mode: edm blocks avoid breaking, fullWidth spans all columns

@@ -23,7 +23,7 @@ export function pxToMm(px: number): number {
  * Assign a data-edm-node-id to each top-level element.
  * Uses existing `id` attribute if present, otherwise generates `node-{index}`.
  */
-function assignNodeIds(container: HTMLElement): BookNode[] {
+function assignNodeIds(container: HTMLElement, showHr: boolean): BookNode[] {
   const nodes: BookNode[] = []
   const children = container.children
   let ordinal = 0
@@ -31,6 +31,7 @@ function assignNodeIds(container: HTMLElement): BookNode[] {
   for (let i = 0; i < children.length; i++) {
     const child = children[i] as HTMLElement
     if (child.tagName === 'STYLE' || child.tagName === 'LINK') continue
+    if (!showHr && child.tagName === 'HR') continue
 
     const existingId = child.getAttribute('id')
     const nodeId = existingId || `node-${ordinal}`
@@ -55,8 +56,9 @@ function isHeading(html: string): boolean {
 function paginateNodes(
   container: HTMLElement,
   contentHeight: number,
+  showHr: boolean,
 ): BookNode[][] {
-  const allNodes = assignNodeIds(container)
+  const allNodes = assignNodeIds(container, showHr)
   const pages: BookNode[][] = []
   let currentPage: BookNode[] = []
   let accumulatedHeight = 0
@@ -66,6 +68,7 @@ function paginateNodes(
   for (let i = 0; i < children.length; i++) {
     const child = children[i] as HTMLElement
     if (child.tagName === 'STYLE' || child.tagName === 'LINK') continue
+    if (!showHr && child.tagName === 'HR') continue
 
     const style = getComputedStyle(child)
     const marginTop = parseFloat(style.marginTop) || 0
@@ -149,12 +152,13 @@ export function useBookPagination() {
     const config = useBookLayoutStore.getState().layoutConfig
     if (!config?.isManual) return
 
+    const showHr = config.showHr ?? false
     // Use cached nodes if html hasn't changed
     let nodes = cachedNodesRef.current
     if (nodes.length === 0) {
       const el = measureRef.current
       if (!el) return
-      nodes = assignNodeIds(el)
+      nodes = assignNodeIds(el, showHr)
       cachedNodesRef.current = nodes
       lastHtmlRef.current = html || ''
     }
@@ -177,8 +181,10 @@ export function useBookPagination() {
     // Open all <details> — book mode shows solutions expanded
     el.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
 
+    const showHr = layoutConfig?.showHr ?? false
+
     requestAnimationFrame(() => {
-      const nodes = assignNodeIds(el)
+      const nodes = assignNodeIds(el, showHr)
       cachedNodesRef.current = nodes
       lastHtmlRef.current = html
       setAllNodes(nodes)
@@ -193,7 +199,7 @@ export function useBookPagination() {
         setPages(manualPages)
         setTotalPages(manualPages.length)
       } else {
-        const result = paginateNodes(el, contentHeight)
+        const result = paginateNodes(el, contentHeight, showHr)
         setPages(result)
         setTotalPages(result.length)
       }

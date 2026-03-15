@@ -18,6 +18,7 @@ import { BookPage } from './book/BookPage'
 import { BookToolbar } from './book/BookToolbar'
 import { BookBlockPanel } from './book/BookBlockPanel'
 import { BookThumbnails } from './book/BookThumbnails'
+import { BookConfigPanel } from './book/BookConfigPanel'
 import { detectBlockInfo } from './book/BookBlock'
 import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import previewBaseCss from '@/styles/preview-base.css?raw'
@@ -116,6 +117,7 @@ export function BookPreview() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  const [showConfig, setShowConfig] = useState(false)
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(event.active.id as string)
@@ -178,22 +180,78 @@ export function BookPreview() {
     toggleEditing()
   }, [isEditing, handleEnterEditing, toggleEditing])
 
-  // Scroll to current page when entering edit mode (all pages shown)
+  // Clamp selectedPageIndex to valid range
+  const safePageIndex = pages.length > 0 ? Math.min(selectedPageIndex, pages.length - 1) : 0
+
+  // Scroll to page when selectedPageIndex changes (from toolbar or thumbnails)
+  const scrollToPage = useCallback((pageIdx: number, behavior: ScrollBehavior = 'smooth') => {
+    requestAnimationFrame(() => {
+      const container = scrollAreaRef.current
+      if (!container) return
+      const pageEl = container.querySelector(`[data-page-index="${pageIdx}"]`) as HTMLElement
+      if (pageEl) {
+        pageEl.scrollIntoView({ block: 'start', behavior })
+      }
+    })
+  }, [])
+
+  // When page index changes via toolbar/thumbnail, scroll to it
+  const prevPageRef = useRef(safePageIndex)
+  const isScrollingRef = useRef(false)
+  useEffect(() => {
+    if (prevPageRef.current !== safePageIndex && !isScrollingRef.current) {
+      scrollToPage(safePageIndex)
+    }
+    prevPageRef.current = safePageIndex
+  }, [safePageIndex, scrollToPage])
+
+  // Scroll to current page when entering edit mode
   const prevIsEditing = useRef(isEditing)
   useEffect(() => {
-    if (isEditing && !prevIsEditing.current) {
-      // Just entered edit mode — scroll to the page we were viewing
-      requestAnimationFrame(() => {
-        const container = scrollAreaRef.current
-        if (!container) return
-        const pageEl = container.querySelector(`[data-page-index="${safePageIndex}"]`) as HTMLElement
-        if (pageEl) {
-          pageEl.scrollIntoView({ block: 'start', behavior: 'instant' })
-        }
-      })
+    if (isEditing !== prevIsEditing.current) {
+      scrollToPage(safePageIndex, 'instant')
     }
     prevIsEditing.current = isEditing
   }, [isEditing]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track which page is most visible during scroll (update thumbnail highlight)
+  useEffect(() => {
+    const container = scrollAreaRef.current
+    if (!container || pages.length === 0) return
+
+    let ticking = false
+    const handleScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        ticking = false
+        const containerRect = container.getBoundingClientRect()
+        const midY = containerRect.top + containerRect.height * 0.3
+        let closest = 0
+        let closestDist = Infinity
+
+        for (let i = 0; i < pages.length; i++) {
+          const el = container.querySelector(`[data-page-index="${i}"]`) as HTMLElement
+          if (!el) continue
+          const rect = el.getBoundingClientRect()
+          const dist = Math.abs(rect.top - midY)
+          if (dist < closestDist) {
+            closestDist = dist
+            closest = i
+          }
+        }
+
+        if (closest !== useBookLayoutStore.getState().selectedPageIndex) {
+          isScrollingRef.current = true
+          setSelectedPageIndex(closest)
+          requestAnimationFrame(() => { isScrollingRef.current = false })
+        }
+      })
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [pages.length, setSelectedPageIndex])
 
   // Find which page the selected block is on
   const selectedBlockPage = useMemo(() => {
@@ -215,9 +273,6 @@ export function BookPreview() {
     }
     return ''
   }, [selectedBlockId, pages])
-
-  // Clamp selectedPageIndex to valid range
-  const safePageIndex = pages.length > 0 ? Math.min(selectedPageIndex, pages.length - 1) : 0
 
   // Page layouts array for thumbnails
   const pageLayouts = useMemo(
@@ -293,94 +348,50 @@ export function BookPreview() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            {isEditing ? (
-              /* Editing: show all pages vertically for cross-page DnD */
-              <div
-                className="edm-book-pages"
-                style={{
-                  padding: '48px 16px 32px',
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'top center',
-                }}
-              >
-                {pages.map((pageNodes, i) => {
-                  const pageConf = layoutConfig?.pages[i]
-                  const layout = pageConf?.layout ?? 'stack'
-                  const blockProps = pageConf?.blockProps ?? {}
+            {/* All pages — continuous scroll in both modes */}
+            <div
+              className="edm-book-pages"
+              style={{
+                padding: isEditing ? '48px 16px 32px' : '32px 16px',
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top center',
+              }}
+            >
+              {pages.map((pageNodes, i) => {
+                const pageConf = layoutConfig?.pages[i]
+                const layout = pageConf?.layout ?? 'stack'
+                const blockProps = pageConf?.blockProps ?? {}
 
-                  return (
-                    <BookPage
-                      key={i}
-                      pageIndex={i}
-                      nodes={pageNodes}
-                      layout={layout}
-                      blockProps={blockProps}
-                      isEditing={isEditing}
-                      selectedBlockId={selectedBlockId}
-                      onSelectBlock={(id) => {
-                        selectBlock(id)
-                        setSelectedPageIndex(i)
-                      }}
-                      style={{
-                        width: `${pageWidthPx}px`,
-                        minHeight: `${pageHeightPx}px`,
-                        paddingTop: `${paddingTop}px`,
-                        paddingBottom: `${paddingBottom}px`,
-                        paddingLeft: `${paddingLeft}px`,
-                        paddingRight: `${paddingRight}px`,
-                      }}
-                      bookThemeCss={bookThemeCss}
-                      totalPages={pages.length}
-                      columnGap={columnGap}
-                      onChangeLayout={(layout) => setPageLayout(i, layout)}
-                    />
-                  )
-                })}
-              </div>
-            ) : (
-              /* Viewing: show only the selected page, centered */
-              <div
-                className="edm-book-pages edm-book-pages-single"
-                style={{
-                  padding: '32px 16px',
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'top center',
-                }}
-              >
-                {pages.length > 0 && (() => {
-                  const i = safePageIndex
-                  const pageNodes = pages[i]
-                  if (!pageNodes) return null
-                  const pageConf = layoutConfig?.pages[i]
-                  const layout = pageConf?.layout ?? 'stack'
-                  const blockProps = pageConf?.blockProps ?? {}
-
-                  return (
-                    <BookPage
-                      key={i}
-                      pageIndex={i}
-                      nodes={pageNodes}
-                      layout={layout}
-                      blockProps={blockProps}
-                      isEditing={false}
-                      selectedBlockId={null}
-                      onSelectBlock={() => {}}
-                      style={{
-                        width: `${pageWidthPx}px`,
-                        minHeight: `${pageHeightPx}px`,
-                        paddingTop: `${paddingTop}px`,
-                        paddingBottom: `${paddingBottom}px`,
-                        paddingLeft: `${paddingLeft}px`,
-                        paddingRight: `${paddingRight}px`,
-                      }}
-                      bookThemeCss={bookThemeCss}
-                      totalPages={pages.length}
-                      columnGap={columnGap}
-                    />
-                  )
-                })()}
-              </div>
-            )}
+                return (
+                  <BookPage
+                    key={i}
+                    pageIndex={i}
+                    nodes={pageNodes}
+                    layout={layout}
+                    blockProps={blockProps}
+                    isEditing={isEditing}
+                    selectedBlockId={selectedBlockId}
+                    onSelectBlock={(id) => {
+                      selectBlock(id)
+                      setSelectedPageIndex(i)
+                    }}
+                    style={{
+                      width: `${pageWidthPx}px`,
+                      minHeight: `${pageHeightPx}px`,
+                      paddingTop: `${paddingTop}px`,
+                      paddingBottom: `${paddingBottom}px`,
+                      paddingLeft: `${paddingLeft}px`,
+                      paddingRight: `${paddingRight}px`,
+                    }}
+                    bookThemeCss={bookThemeCss}
+                    totalPages={pages.length}
+                    columnGap={columnGap}
+                    docTextAlign={layoutConfig?.textAlign}
+                    onChangeLayout={isEditing ? (layout) => setPageLayout(i, layout) : undefined}
+                  />
+                )
+              })}
+            </div>
 
             <DragOverlay>
               {activeDragId && dragOverlayInfo ? (
@@ -427,12 +438,19 @@ export function BookPreview() {
         />
       )}
 
+      {/* Page config panel */}
+      {showConfig && (
+        <BookConfigPanel onClose={() => setShowConfig(false)} />
+      )}
+
       {/* Bottom toolbar */}
       <BookToolbar
         currentPage={safePageIndex}
         totalPages={pages.length}
         onPageChange={setSelectedPageIndex}
         onToggleEditing={handleToggleEditing}
+        showConfig={showConfig}
+        onToggleConfig={() => setShowConfig((v) => !v)}
         zoom={zoom}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
