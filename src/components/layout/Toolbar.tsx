@@ -1,7 +1,7 @@
 import {
   PanelLeftClose, PanelRightClose, Columns2,
   Download, Settings, FileText, RotateCcw, HelpCircle,
-  Monitor, Presentation, BookOpen,
+  Monitor, Presentation, BookOpen, Sparkles,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
@@ -28,6 +28,7 @@ export function Toolbar() {
   const configPanelOpen = useUIStore((s) => s.configPanelOpen)
   const setConfigPanelOpen = useUIStore((s) => s.setConfigPanelOpen)
   const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
+  const setSkillsModalOpen = useUIStore((s) => s.setSkillsModalOpen)
   const filename = useDocumentStore((s) => s.filename)
   const reset = useDocumentStore((s) => s.reset)
   const contentMode = useContentModeStore((s) => s.contentMode)
@@ -104,10 +105,19 @@ export function Toolbar() {
             'p-2 rounded-lg transition-colors',
             configPanelOpen
               ? 'bg-[var(--app-accent)] text-white'
-              : 'text-[var(--app-fg2)] hover:bg-[var(--app-bg2)] hover:text-[var(--app-fg1)]'
+              : 'text-[var(--app-fg1)] hover:bg-[var(--app-bg2)] hover:text-[var(--app-accent)]'
           )}
         >
           <Settings size={16} />
+        </button>
+        <button
+          onClick={() => setSkillsModalOpen(true)}
+          title="Prompts para LLMs"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500
+            text-white text-xs font-medium hover:bg-amber-400 transition-colors"
+        >
+          <Sparkles size={14} />
+          <span className="hidden sm:inline">Skills</span>
         </button>
         <button
           onClick={() => setExportModalOpen(true)}
@@ -121,16 +131,16 @@ export function Toolbar() {
         <button
           onClick={() => setHelpModalOpen(true)}
           title="Ayuda"
-          className="p-2 rounded-lg text-[var(--app-fg3)] hover:bg-[var(--app-bg2)]
-            hover:text-[var(--app-fg2)] transition-colors"
+          className="p-2 rounded-lg text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]
+            hover:text-[var(--app-accent)] transition-colors"
         >
           <HelpCircle size={14} />
         </button>
         <button
           onClick={reset}
           title="Cerrar documento"
-          className="p-2 rounded-lg text-[var(--app-fg3)] hover:bg-[var(--app-bg2)]
-            hover:text-[var(--app-fg2)] transition-colors"
+          className="p-2 rounded-lg text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]
+            hover:text-[var(--app-accent)] transition-colors"
         >
           <RotateCcw size={14} />
         </button>

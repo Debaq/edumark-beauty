@@ -4,6 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { formattingKeymap } from './editor-commands'
 import { sectionColors } from './section-colors'
 import { blockNesting } from './block-nesting'
 import { codeHighlight } from './code-highlight'
@@ -70,6 +71,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
         oneDark,
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
+        formattingKeymap,
         updateListener,
         sectionColors,
         blockNesting,

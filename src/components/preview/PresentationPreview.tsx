@@ -63,7 +63,7 @@ export function PresentationPreview() {
   const [presenterMode, setPresenterMode] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [controlsVisible, setControlsVisible] = useState(true)
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null)
   const timerStartRef = useRef<number>(0)
 
   // Track viewport size with ResizeObserver

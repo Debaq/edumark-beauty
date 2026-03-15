@@ -7,6 +7,7 @@ interface UIStore {
   exportModalOpen: boolean
   configPanelOpen: boolean
   helpModalOpen: boolean
+  skillsModalOpen: boolean
   scrollSync: boolean
   toasts: Toast[]
 
@@ -14,6 +15,7 @@ interface UIStore {
   setExportModalOpen: (open: boolean) => void
   setConfigPanelOpen: (open: boolean) => void
   setHelpModalOpen: (open: boolean) => void
+  setSkillsModalOpen: (open: boolean) => void
   toggleScrollSync: () => void
   addToast: (message: string, type?: Toast['type']) => void
   removeToast: (id: string) => void
@@ -32,6 +34,7 @@ export const useUIStore = create<UIStore>((set) => ({
   exportModalOpen: false,
   configPanelOpen: false,
   helpModalOpen: false,
+  skillsModalOpen: false,
   scrollSync: true,
   toasts: [],
 
@@ -39,6 +42,7 @@ export const useUIStore = create<UIStore>((set) => ({
   setExportModalOpen: (open) => set({ exportModalOpen: open }),
   setConfigPanelOpen: (open) => set({ configPanelOpen: open }),
   setHelpModalOpen: (open) => set({ helpModalOpen: open }),
+  setSkillsModalOpen: (open) => set({ skillsModalOpen: open }),
   toggleScrollSync: () => set((s) => ({ scrollSync: !s.scrollSync })),
 
   addToast: (message, type = 'info') => {

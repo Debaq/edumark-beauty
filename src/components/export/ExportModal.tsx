@@ -4,6 +4,7 @@ import { useUIStore } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useContentModeStore } from '@/store/contentMode'
+import { useBookLayoutStore } from '@/store/bookLayout'
 import { exportFullHtml } from '@/lib/exportHtml'
 import { copyHtmlSnippet } from '@/lib/exportSnippet'
 import { exportPdf } from '@/lib/exportPdf'
@@ -31,6 +32,7 @@ export function ExportModal() {
   const slides = useContentModeStore((s) => s.slides)
   const slideConfig = useContentModeStore((s) => s.slideConfig)
   const pageConfig = useContentModeStore((s) => s.pageConfig)
+  const bookLayout = useBookLayoutStore((s) => s.layoutConfig)
 
   // --- HTML mode handlers ---
   const handleHtml = useCallback(() => {
@@ -126,25 +128,25 @@ export function ExportModal() {
     try {
       addToast('Generando PDF de libro...', 'info')
       const { exportBookPdf } = await import('@/lib/exportBookPdf')
-      await exportBookPdf(html, themeConfig, pageConfig, filename)
+      await exportBookPdf(html, themeConfig, pageConfig, filename, bookLayout)
       addToast('PDF de libro generado', 'success')
     } catch {
       addToast('Error al generar PDF de libro', 'error')
     }
     setOpen(false)
-  }, [html, themeConfig, pageConfig, filename, addToast, setOpen])
+  }, [html, themeConfig, pageConfig, filename, bookLayout, addToast, setOpen])
 
   const handleBookDocx = useCallback(async () => {
     try {
       addToast('Generando DOCX de libro...', 'info')
       const { exportBookDocx } = await import('@/lib/exportBookDocx')
-      await exportBookDocx(html, pageConfig, filename)
+      await exportBookDocx(html, pageConfig, filename, bookLayout)
       addToast('DOCX de libro generado', 'success')
     } catch {
       addToast('Error al generar DOCX', 'error')
     }
     setOpen(false)
-  }, [html, pageConfig, filename, addToast, setOpen])
+  }, [html, pageConfig, filename, bookLayout, addToast, setOpen])
 
   const cards: ExportCard[] = useMemo(() => {
     switch (contentMode) {

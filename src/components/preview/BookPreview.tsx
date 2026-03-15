@@ -1,87 +1,64 @@
-import { useMemo, useEffect, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
-import { useContentModeStore } from '@/store/contentMode'
+import { useBookLayoutStore } from '@/store/bookLayout'
+import { useBookPagination } from '@/hooks/useBookPagination'
 import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import { generateThemeCss } from './previewTheme'
+import { BookPage } from './book/BookPage'
+import { BookToolbar } from './book/BookToolbar'
+import { BookLayoutSelector } from './book/BookLayoutSelector'
+import { BookBlockPanel } from './book/BookBlockPanel'
+import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
 import '@/styles/book.css'
 
-/** Convert mm to px at 96 DPI */
-function mmToPx(mm: number): number {
-  return Math.round(mm * 96 / 25.4)
-}
-
-/**
- * Walk top-level children of a container and group them into pages
- * based on available content height.
- */
-function paginateNodes(
-  container: HTMLElement,
-  contentHeight: number
-): string[][] {
-  const pages: string[][] = []
-  let currentPage: string[] = []
-  let accumulatedHeight = 0
-
-  const children = container.children
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i] as HTMLElement
-    // Skip <style> and <link> elements
-    if (child.tagName === 'STYLE' || child.tagName === 'LINK') continue
-
-    const style = getComputedStyle(child)
-    const marginTop = parseFloat(style.marginTop) || 0
-    const marginBottom = parseFloat(style.marginBottom) || 0
-    const totalHeight = child.offsetHeight + marginTop + marginBottom
-
-    // If adding this element exceeds the page, start a new one
-    // (unless the page is empty — always put at least one element per page)
-    if (accumulatedHeight + totalHeight > contentHeight && currentPage.length > 0) {
-      pages.push(currentPage)
-      currentPage = []
-      accumulatedHeight = 0
-    }
-
-    currentPage.push(child.outerHTML)
-    accumulatedHeight += totalHeight
-  }
-
-  if (currentPage.length > 0) {
-    pages.push(currentPage)
-  }
-
-  return pages
-}
-
 export function BookPreview() {
   const html = useDocumentStore((s) => s.html)
   const themeConfig = useThemeStore((s) => s.config)
-  const pageConfig = useContentModeStore((s) => s.pageConfig)
+
+  const layoutConfig = useBookLayoutStore((s) => s.layoutConfig)
+  const isEditing = useBookLayoutStore((s) => s.isEditing)
+  const selectedBlockId = useBookLayoutStore((s) => s.selectedBlockId)
+  const selectedPageIndex = useBookLayoutStore((s) => s.selectedPageIndex)
+  const selectBlock = useBookLayoutStore((s) => s.selectBlock)
+  const setSelectedPageIndex = useBookLayoutStore((s) => s.setSelectedPageIndex)
+  const setPageLayout = useBookLayoutStore((s) => s.setPageLayout)
+  const moveBlock = useBookLayoutStore((s) => s.moveBlock)
+  const initFromAutoPages = useBookLayoutStore((s) => s.initFromAutoPages)
+
+  const {
+    pages,
+    measureRef,
+    pageWidthPx,
+    pageHeightPx,
+    paddingTop,
+    paddingBottom,
+    paddingLeft,
+    paddingRight,
+  } = useBookPagination()
+
+  const contentWidthPx = pageWidthPx - paddingLeft - paddingRight
+  const contentHeightPx = pageHeightPx - paddingTop - paddingBottom
 
   const themeCssVars = useMemo(() => generateThemeCss(themeConfig), [themeConfig])
 
-  const pageWidthPx = mmToPx(pageConfig.width)
-  const pageHeightPx = mmToPx(pageConfig.height)
-  const paddingTop = mmToPx(pageConfig.margins.top)
-  const paddingBottom = mmToPx(pageConfig.margins.bottom)
-  const paddingLeft = mmToPx(pageConfig.margins.left)
-  const paddingRight = mmToPx(pageConfig.margins.right)
-  const contentHeight = pageHeightPx - paddingTop - paddingBottom
-
-  const measureRef = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState<string[][]>([])
-
   // Book-mode theme: force white background, dark text
   const bookThemeCss = useMemo(() => {
-    // Start with the full theme vars (keeps typography, card colors, etc.)
     let css = themeCssVars
-    // Override backgrounds to white/light for printed book look
     css += `\n  --t-bg: #ffffff;`
     css += `\n  --t-bg1: #f8f9fa;`
     css += `\n  --t-bg2: #f0f1f3;`
-    // Force dark text for readability on white
     css += `\n  --t-fg: #1a1a1a;`
     css += `\n  --t-fg1: #2d2d2d;`
     css += `\n  --t-fg2: #555555;`
@@ -95,34 +72,90 @@ export function BookPreview() {
     return css
   }, [themeCssVars])
 
-  const paginate = useCallback(() => {
-    const el = measureRef.current
-    if (!el || !html) return
-
-    // Open all <details> — book mode shows solutions expanded
-    el.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
-
-    // Wait for fonts and images to settle
-    requestAnimationFrame(() => {
-      const result = paginateNodes(el, contentHeight)
-      setPages(result)
-    })
-  }, [html, contentHeight])
-
-  // Re-paginate when html or page config changes
-  useEffect(() => {
-    if (!html) {
-      setPages([])
-      return
-    }
-    // Small delay to let the hidden measure container render
-    const timer = setTimeout(paginate, 100)
-    return () => clearTimeout(timer)
-  }, [html, paginate])
-
-  // Interactividad de preguntas (scoped al contenedor del libro)
+  // Interactividad de preguntas
   const bookContainerRef = useRef<HTMLDivElement>(null)
   useQuestionInteractivity(bookContainerRef, html)
+
+  // ── DnD setup ──
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+  const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string)
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveDragId(null)
+    const { active, over } = event
+    if (!over || !layoutConfig) return
+
+    const activeData = active.data.current as { pageIndex: number; nodeId: string } | undefined
+    if (!activeData) return
+
+    const fromPage = activeData.pageIndex
+    const fromBlockId = activeData.nodeId
+
+    // Determine destination page and index
+    let toPage: number
+    let toIndex: number
+
+    const overId = over.id as string
+
+    if (overId.startsWith('page-')) {
+      // Dropped on a page droppable
+      toPage = parseInt(overId.replace('page-', ''))
+      toIndex = layoutConfig.pages[toPage]?.blockIds.length ?? 0
+    } else {
+      // Dropped on another block
+      const overData = over.data.current as { pageIndex: number; nodeId: string } | undefined
+      if (!overData) return
+      toPage = overData.pageIndex
+      const overIndex = layoutConfig.pages[toPage]?.blockIds.indexOf(overData.nodeId) ?? -1
+      toIndex = overIndex >= 0 ? overIndex : 0
+    }
+
+    const fromIndex = layoutConfig.pages[fromPage]?.blockIds.indexOf(fromBlockId) ?? -1
+    if (fromIndex < 0) return
+
+    // Don't move if same position
+    if (fromPage === toPage && fromIndex === toIndex) return
+
+    moveBlock(fromPage, fromIndex, toPage, toIndex)
+  }, [layoutConfig, moveBlock])
+
+  // ── Ensure manual layout when editing ──
+  const handleEnterEditing = useCallback(() => {
+    if (!layoutConfig && pages.length > 0) {
+      initFromAutoPages(pages.map((pageNodes) =>
+        pageNodes.map((n) => ({ nodeId: n.nodeId }))
+      ))
+    }
+  }, [layoutConfig, pages, initFromAutoPages])
+
+  // When toggling edit, initialize manual layout if needed
+  const toggleEditing = useBookLayoutStore((s) => s.toggleEditing)
+  const handleToggleEditing = useCallback(() => {
+    if (!isEditing) {
+      handleEnterEditing()
+    }
+    toggleEditing()
+  }, [isEditing, handleEnterEditing, toggleEditing])
+
+  // Find which page the selected block is on
+  const selectedBlockPage = useMemo(() => {
+    if (!selectedBlockId || !layoutConfig) return -1
+    return layoutConfig.pages.findIndex((p) => p.blockIds.includes(selectedBlockId))
+  }, [selectedBlockId, layoutConfig])
+
+  const selectedBlockProps = useMemo(() => {
+    if (selectedBlockPage < 0 || !layoutConfig || !selectedBlockId) return undefined
+    return layoutConfig.pages[selectedBlockPage]?.blockProps[selectedBlockId]
+  }, [selectedBlockPage, layoutConfig, selectedBlockId])
+
+  // Current page layout for layout selector
+  const currentPageLayout = layoutConfig?.pages[selectedPageIndex]?.layout ?? 'stack'
 
   if (!html) {
     return (
@@ -133,7 +166,7 @@ export function BookPreview() {
   }
 
   return (
-    <div ref={bookContainerRef} className="edm-book-container h-full overflow-auto">
+    <div ref={bookContainerRef} className="edm-book-container h-full flex flex-col">
       <style>{previewBaseCss}{interactivityCss}</style>
       <link
         rel="stylesheet"
@@ -144,7 +177,7 @@ export function BookPreview() {
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:wght@300;400;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       />
 
-      {/* Hidden measurement container — same width, no height constraint */}
+      {/* Hidden measurement container */}
       <div
         ref={measureRef}
         className="edm-preview edm-book-measure"
@@ -152,7 +185,7 @@ export function BookPreview() {
           position: 'absolute',
           left: '-9999px',
           top: 0,
-          width: `${pageWidthPx - paddingLeft - paddingRight}px`,
+          width: `${contentWidthPx}px`,
           visibility: 'hidden',
           background: '#ffffff',
         }}
@@ -160,32 +193,93 @@ export function BookPreview() {
       />
       <style>{`.edm-book-measure { ${bookThemeCss} }`}</style>
 
-      {/* Rendered pages */}
-      <div className="edm-book-pages">
-        {pages.map((pageContent, i) => (
-          <div
-            key={i}
-            className="edm-book-page"
-            style={{
-              width: `${pageWidthPx}px`,
-              height: `${pageHeightPx}px`,
-              paddingTop: `${paddingTop}px`,
-              paddingBottom: `${paddingBottom}px`,
-              paddingLeft: `${paddingLeft}px`,
-              paddingRight: `${paddingRight}px`,
-            }}
-          >
-            <div
-              className="edm-preview"
-              dangerouslySetInnerHTML={{ __html: pageContent.join('\n') }}
-            />
-            <style>{`.edm-book-page .edm-preview { ${bookThemeCss} }`}</style>
-            <div className="edm-book-page-number">{i + 1}</div>
+      {/* Scrollable page area */}
+      <div className="flex-1 overflow-auto">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="edm-book-pages" style={{ padding: '32px 16px' }}>
+            {pages.map((pageNodes, i) => {
+              const pageConf = layoutConfig?.pages[i]
+              const layout = pageConf?.layout ?? 'stack'
+              const blockProps = pageConf?.blockProps ?? {}
+
+              return (
+                <BookPage
+                  key={i}
+                  pageIndex={i}
+                  nodes={pageNodes}
+                  layout={layout}
+                  blockProps={blockProps}
+                  isEditing={isEditing}
+                  selectedBlockId={selectedBlockId}
+                  onSelectBlock={(id) => {
+                    selectBlock(id)
+                    setSelectedPageIndex(i)
+                  }}
+                  style={{
+                    width: `${pageWidthPx}px`,
+                    minHeight: `${pageHeightPx}px`,
+                    paddingTop: `${paddingTop}px`,
+                    paddingBottom: `${paddingBottom}px`,
+                    paddingLeft: `${paddingLeft}px`,
+                    paddingRight: `${paddingRight}px`,
+                  }}
+                  bookThemeCss={bookThemeCss}
+                  contentWidthPx={contentWidthPx}
+                  contentHeightPx={contentHeightPx}
+                />
+              )
+            })}
           </div>
-        ))}
+
+          <DragOverlay>
+            {activeDragId ? (
+              <div className="edm-book-block-dragging" style={{
+                background: 'white',
+                padding: '8px',
+                borderRadius: '4px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+                opacity: 0.8,
+                maxWidth: '300px',
+              }}>
+                <span className="text-xs text-gray-500">{activeDragId}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {themeConfig.customCss && <style>{themeConfig.customCss}</style>}
+
+      {/* Block properties panel */}
+      {isEditing && selectedBlockId && selectedBlockPage >= 0 && (
+        <BookBlockPanel
+          pageIndex={selectedBlockPage}
+          blockId={selectedBlockId}
+          blockProps={selectedBlockProps ?? DEFAULT_BLOCK_PROPS}
+          onClose={() => selectBlock(null)}
+        />
+      )}
+
+      {/* Layout selector (when editing and a page is selected) */}
+      {isEditing && layoutConfig && (
+        <BookLayoutSelector
+          currentLayout={currentPageLayout}
+          onSelectLayout={(layout) => setPageLayout(selectedPageIndex, layout)}
+        />
+      )}
+
+      {/* Bottom toolbar */}
+      <BookToolbar
+        currentPage={selectedPageIndex}
+        totalPages={pages.length}
+        onPageChange={setSelectedPageIndex}
+        onToggleEditing={handleToggleEditing}
+      />
     </div>
   )
 }

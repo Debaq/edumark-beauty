@@ -6,6 +6,7 @@ import { Panels } from '@/components/layout/Panels'
 import { ConfigPanel } from '@/components/config/ConfigPanel'
 import { ExportModal } from '@/components/export/ExportModal'
 import { HelpModal } from '@/components/layout/HelpModal'
+import { SkillsModal } from '@/components/layout/SkillsModal'
 import { ToastContainer } from '@/components/ui/Toast'
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
         {configPanelOpen && <ConfigPanel />}
       </div>
       <ExportModal />
+      <SkillsModal />
       <HelpModal />
       <ToastContainer />
     </div>

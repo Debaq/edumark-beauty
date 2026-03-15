@@ -33,6 +33,12 @@
   background: white !important;
 }
 
+/* Grid layout area */
+.edm-book-page-grid {
+  max-width: none;
+  padding: 0;
+}
+
 /* Page number */
 .edm-book-page-number {
   position: absolute;
@@ -44,6 +50,7 @@
   color: #999;
   font-family: 'Inter', sans-serif;
   pointer-events: none;
+  z-index: 20;
 }
 
 /* Subtle page edge effect — right side */
@@ -55,6 +62,7 @@
   width: 1px;
   height: 100%;
   background: linear-gradient(to bottom, rgba(0,0,0,0.04), rgba(0,0,0,0.08), rgba(0,0,0,0.04));
+  pointer-events: none;
 }
 
 /* Subtle top fold effect */
@@ -66,6 +74,7 @@
   right: 0;
   height: 1px;
   background: linear-gradient(to right, rgba(0,0,0,0.03), rgba(0,0,0,0.06), rgba(0,0,0,0.03));
+  pointer-events: none;
 }
 
 /* Hero section in book mode: allow accent background on first page */
@@ -82,4 +91,139 @@
 .edm-book-page:first-child .edm-preview .edm-hero .edm-hero-subtitle,
 .edm-book-page:first-child .edm-preview .edm-hero .edm-hero-meta {
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* ========================================
+   Editing mode styles
+   ======================================== */
+
+.edm-book-page-editing {
+  overflow: visible;
+}
+
+/* Drop target highlight */
+.edm-book-page-drop-target {
+  outline: 2px dashed #3b82f6;
+  outline-offset: -2px;
+}
+
+/* ── Block editing ── */
+
+.edm-book-block {
+  position: relative;
+  min-height: 0;
+}
+
+.edm-book-block-editing {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: outline 0.15s, box-shadow 0.15s;
+}
+
+.edm-book-block-editing:hover {
+  outline: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.edm-book-block-selected {
+  outline: 2px solid #3b82f6 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.edm-book-block-dragging {
+  opacity: 0.5;
+  z-index: 100;
+}
+
+/* Drag handle */
+.edm-book-block-handle {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 20px;
+  height: 20px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: #999;
+  cursor: grab;
+  z-index: 15;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.edm-book-block-handle:active {
+  cursor: grabbing;
+}
+
+.edm-book-block-handle-free {
+  left: -24px;
+  top: 4px;
+  cursor: move;
+}
+
+.edm-book-block-editing:hover .edm-book-block-handle,
+.edm-book-block-selected .edm-book-block-handle {
+  display: flex;
+}
+
+/* Block type badge */
+.edm-book-block-badge {
+  position: absolute;
+  right: 4px;
+  top: -8px;
+  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 16px;
+  z-index: 15;
+  display: none;
+  pointer-events: none;
+}
+
+.edm-book-block-editing:hover .edm-book-block-badge,
+.edm-book-block-selected .edm-book-block-badge {
+  display: block;
+}
+
+/* ── Resize handles ── */
+
+.edm-book-resize-handle {
+  position: absolute;
+  background: #3b82f6;
+  border: 1.5px solid white;
+  border-radius: 2px;
+  z-index: 20;
+}
+
+.edm-book-resize-se { width: 8px; height: 8px; bottom: -4px; right: -4px; cursor: se-resize; }
+.edm-book-resize-sw { width: 8px; height: 8px; bottom: -4px; left: -4px; cursor: sw-resize; }
+.edm-book-resize-ne { width: 8px; height: 8px; top: -4px; right: -4px; cursor: ne-resize; }
+.edm-book-resize-nw { width: 8px; height: 8px; top: -4px; left: -4px; cursor: nw-resize; }
+.edm-book-resize-e { width: 6px; height: 16px; top: calc(50% - 8px); right: -3px; cursor: e-resize; }
+.edm-book-resize-w { width: 6px; height: 16px; top: calc(50% - 8px); left: -3px; cursor: w-resize; }
+.edm-book-resize-s { width: 16px; height: 6px; bottom: -3px; left: calc(50% - 8px); cursor: s-resize; }
+.edm-book-resize-n { width: 16px; height: 6px; top: -3px; left: calc(50% - 8px); cursor: n-resize; }
+
+/* ── Block panel (popover) ── */
+
+.edm-book-block-panel {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 1000;
+  width: 240px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--app-bg1, #1e1e1e);
+  border: 1px solid var(--app-border, #333);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }

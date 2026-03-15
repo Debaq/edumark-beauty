@@ -4,6 +4,7 @@ import { useUIStore } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
 import { useContentModeStore } from '@/store/contentMode'
 import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
+import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PreviewRouter } from '@/components/preview/PreviewRouter'
 import type { PreviewHandle } from '@/components/preview/Preview'
 import { findSlideBoundaries } from '@/lib/slideParser'
@@ -316,8 +317,11 @@ export function Panels() {
 
   if (viewMode === 'editor') {
     return (
-      <div className="flex-1 overflow-hidden">
-        <EdmEditor />
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <EditorToolbar getView={() => editorRef.current?.getView() ?? null} />
+        <div className="flex-1 overflow-hidden">
+          <EdmEditor ref={editorRef} />
+        </div>
       </div>
     )
   }
@@ -333,8 +337,11 @@ export function Panels() {
   // Split
   return (
     <div ref={containerRef} className="flex-1 flex overflow-hidden">
-      <div className="overflow-hidden" style={{ width: `${splitPercent}%` }}>
-        <EdmEditor ref={editorRef} />
+      <div className="overflow-hidden flex flex-col" style={{ width: `${splitPercent}%` }}>
+        <EditorToolbar getView={() => editorRef.current?.getView() ?? null} />
+        <div className="flex-1 overflow-hidden">
+          <EdmEditor ref={editorRef} />
+        </div>
       </div>
 
       {/* Gutter with sync toggle */}

@@ -103,7 +103,10 @@ export const tableFormatter = ViewPlugin.fromClass(
   class {
     private timer: ReturnType<typeof setTimeout> | null = null
 
-    constructor(private view: EditorView) {
+    view: EditorView
+
+    constructor(view: EditorView) {
+      this.view = view
       this.schedule()
     }
 

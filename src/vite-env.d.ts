@@ -23,19 +23,3 @@ declare module 'html2pdf.js' {
   function html2pdf(): Html2PdfInstance
   export default html2pdf
 }
-
-declare module 'html-to-docx' {
-  interface DocxOptions {
-    table?: { row?: { cantSplit?: boolean } }
-    footer?: boolean
-    pageNumber?: boolean
-  }
-
-  function htmlToDocx(
-    html: string,
-    headerHtml: string | null,
-    options?: DocxOptions
-  ): Promise<Blob>
-
-  export default htmlToDocx
-}
