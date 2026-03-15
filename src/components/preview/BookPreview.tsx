@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +23,8 @@ import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
 import '@/styles/book.css'
+
+const ZOOM_STEPS = [0.25, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
 
 export function BookPreview() {
   const html = useDocumentStore((s) => s.html)
@@ -75,6 +77,38 @@ export function BookPreview() {
   // Interactividad de preguntas
   const bookContainerRef = useRef<HTMLDivElement>(null)
   useQuestionInteractivity(bookContainerRef, html)
+
+  // ── Zoom ──
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const [zoom, setZoom] = useState(1)
+
+  const fitWidth = useCallback(() => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const available = el.clientWidth - 48 // 24px padding each side
+    setZoom(Math.min(1.5, available / pageWidthPx))
+  }, [pageWidthPx])
+
+  const fitHeight = useCallback(() => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const available = el.clientHeight - 80 // padding top/bottom
+    setZoom(Math.min(1.5, available / pageHeightPx))
+  }, [pageHeightPx])
+
+  const zoomIn = useCallback(() => {
+    setZoom((z) => {
+      const next = ZOOM_STEPS.find((s) => s > z + 0.001)
+      return next ?? z
+    })
+  }, [])
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => {
+      const prev = [...ZOOM_STEPS].reverse().find((s) => s < z - 0.001)
+      return prev ?? z
+    })
+  }, [])
 
   // ── DnD setup ──
   const sensors = useSensors(
@@ -142,6 +176,23 @@ export function BookPreview() {
     }
     toggleEditing()
   }, [isEditing, handleEnterEditing, toggleEditing])
+
+  // Scroll to current page when entering edit mode (all pages shown)
+  const prevIsEditing = useRef(isEditing)
+  useEffect(() => {
+    if (isEditing && !prevIsEditing.current) {
+      // Just entered edit mode — scroll to the page we were viewing
+      requestAnimationFrame(() => {
+        const container = scrollAreaRef.current
+        if (!container) return
+        const pageEl = container.querySelector(`[data-page-index="${safePageIndex}"]`) as HTMLElement
+        if (pageEl) {
+          pageEl.scrollIntoView({ block: 'start', behavior: 'instant' })
+        }
+      })
+    }
+    prevIsEditing.current = isEditing
+  }, [isEditing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find which page the selected block is on
   const selectedBlockPage = useMemo(() => {
@@ -233,7 +284,7 @@ export function BookPreview() {
         />
 
         {/* Scrollable page area */}
-        <div className="flex-1 overflow-auto">
+        <div ref={scrollAreaRef} className="flex-1 overflow-auto">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -242,7 +293,14 @@ export function BookPreview() {
           >
             {isEditing ? (
               /* Editing: show all pages vertically for cross-page DnD */
-              <div className="edm-book-pages" style={{ padding: '48px 16px 32px' }}>
+              <div
+                className="edm-book-pages"
+                style={{
+                  padding: '48px 16px 32px',
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top center',
+                }}
+              >
                 {pages.map((pageNodes, i) => {
                   const pageConf = layoutConfig?.pages[i]
                   const layout = pageConf?.layout ?? 'stack'
@@ -277,8 +335,15 @@ export function BookPreview() {
                 })}
               </div>
             ) : (
-              /* Viewing: show only the selected page */
-              <div className="edm-book-pages flex items-center justify-center min-h-full" style={{ padding: '32px 16px' }}>
+              /* Viewing: show only the selected page, centered */
+              <div
+                className="edm-book-pages edm-book-pages-single"
+                style={{
+                  padding: '32px 16px',
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top center',
+                }}
+              >
                 {pages.length > 0 && (() => {
                   const i = safePageIndex
                   const pageNodes = pages[i]
@@ -353,6 +418,7 @@ export function BookPreview() {
           blockProps={selectedBlockProps ?? DEFAULT_BLOCK_PROPS}
           blockHtml={selectedBlockHtml}
           totalPages={pages.length}
+          isTwoColumns={(layoutConfig?.pages[selectedBlockPage]?.layout ?? 'stack') === 'two-columns'}
           onClose={() => selectBlock(null)}
         />
       )}
@@ -363,6 +429,11 @@ export function BookPreview() {
         totalPages={pages.length}
         onPageChange={setSelectedPageIndex}
         onToggleEditing={handleToggleEditing}
+        zoom={zoom}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onFitWidth={fitWidth}
+        onFitHeight={fitHeight}
       />
     </div>
   )

@@ -4,16 +4,13 @@ import type { BookLayoutConfig, PageLayout } from '@/types/bookLayout'
 import { exportFullHtml } from './exportHtml'
 
 const LAYOUT_CSS: Record<PageLayout, string> = {
-  'stack': 'grid-template-columns: 1fr;',
-  'two-columns': 'grid-template-columns: 1fr 1fr;',
-  'grid-2x2': 'grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;',
-  'sidebar-left': 'grid-template-columns: 1fr 2fr;',
-  'sidebar-right': 'grid-template-columns: 2fr 1fr;',
+  'stack': '',
+  'two-columns': 'column-count:2;column-gap:24px;',
 }
 
 /**
  * Exports book mode as PDF with configurable page size and margins.
- * If a BookLayoutConfig is provided, applies grid layouts.
+ * If a BookLayoutConfig is provided, applies column layouts.
  */
 export async function exportBookPdf(
   html: string,
@@ -51,15 +48,17 @@ export async function exportBookPdf(
         const blockHtml = nodeMap.get(blockId)
         if (!blockHtml) continue
         const props = pageConf.blockProps[blockId]
-        const span = props?.gridSpan ? `grid-column:span ${props.gridSpan};` : ''
-        const order = props?.order != null ? `order:${props.order};` : ''
-        blocks.push(
-          `<div style="${span}${order}">${blockHtml}</div>`
-        )
+        const styles: string[] = []
+        if (props?.fullWidth) styles.push('column-span:all;')
+        if (props?.order != null) styles.push(`order:${props.order};`)
+        // Edm blocks avoid breaking across columns
+        if (/class="[^"]*edm-/.test(blockHtml)) styles.push('break-inside:avoid;')
+        const styleAttr = styles.length ? ` style="${styles.join('')}"` : ''
+        blocks.push(`<div${styleAttr}>${blockHtml}</div>`)
       }
 
       const layoutCss = LAYOUT_CSS[pageConf.layout] || LAYOUT_CSS.stack
-      return `<div style="display:grid;${layoutCss}gap:0;align-content:start;">${blocks.join('')}</div>`
+      return `<div style="${layoutCss}">${blocks.join('')}</div>`
     })
 
     contentHtml = pagesHtml.join('<div style="page-break-after:always;"></div>')

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { X, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, ChevronUp, ChevronDown, Columns2, Square } from 'lucide-react'
 import { useBookLayoutStore } from '@/store/bookLayout'
 import type { BlockProps } from '@/types/bookLayout'
 import { detectBlockInfo } from './BookBlock'
@@ -10,15 +10,16 @@ interface Props {
   blockProps: BlockProps | undefined
   blockHtml: string
   totalPages: number
+  isTwoColumns: boolean
   onClose: () => void
 }
 
-export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, totalPages, onClose }: Props) {
+export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, totalPages, isTwoColumns, onClose }: Props) {
   const setBlockProps = useBookLayoutStore((s) => s.setBlockProps)
   const moveBlockToPage = useBookLayoutStore((s) => s.moveBlockToPage)
 
   const info = useMemo(() => detectBlockInfo(blockHtml), [blockHtml])
-  const currentSpan = blockProps?.gridSpan ?? 1
+  const isFullWidth = blockProps?.fullWidth ?? false
 
   return (
     <div className="edm-book-block-panel">
@@ -43,37 +44,36 @@ export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, tota
         </button>
       </div>
 
-      {/* Grid span: visual buttons */}
-      <div className="mb-3">
-        <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
-          Columnas
-        </label>
-        <div className="flex items-center gap-1">
-          {[1, 2, 3].map((n) => (
+      {/* Column span toggle — only shown in two-columns layout */}
+      {isTwoColumns && (
+        <div className="mb-3">
+          <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
+            Columnas
+          </label>
+          <div className="flex items-center gap-1">
             <button
-              key={n}
-              onClick={() => setBlockProps(pageIndex, blockId, { gridSpan: n })}
-              className={`w-8 h-7 rounded border text-[11px] font-medium transition-colors ${
-                currentSpan === n
+              onClick={() => setBlockProps(pageIndex, blockId, { fullWidth: false })}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded border text-[11px] font-medium transition-colors ${
+                !isFullWidth
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent)]/10'
                   : 'border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]'
               }`}
             >
-              {n}
+              <Columns2 size={12} /> Fluir
             </button>
-          ))}
-          <button
-            onClick={() => setBlockProps(pageIndex, blockId, { gridSpan: 99 })}
-            className={`px-2 h-7 rounded border text-[11px] font-medium transition-colors ${
-              currentSpan >= 99
-                ? 'border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent)]/10'
-                : 'border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]'
-            }`}
-          >
-            Full
-          </button>
+            <button
+              onClick={() => setBlockProps(pageIndex, blockId, { fullWidth: true })}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded border text-[11px] font-medium transition-colors ${
+                isFullWidth
+                  ? 'border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent)]/10'
+                  : 'border-[var(--app-border)] text-[var(--app-fg2)] hover:border-[var(--app-fg2)]'
+              }`}
+            >
+              <Square size={12} /> Ancho completo
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Move to page buttons */}
       <div>

@@ -1,6 +1,6 @@
 import {
   Pencil, PencilOff, ChevronLeft, ChevronRight,
-  RotateCcw,
+  RotateCcw, ZoomIn, ZoomOut, Maximize2, ArrowLeftRight,
 } from 'lucide-react'
 import { useBookLayoutStore } from '@/store/bookLayout'
 
@@ -9,9 +9,17 @@ interface BookToolbarProps {
   totalPages: number
   onPageChange: (page: number) => void
   onToggleEditing: () => void
+  zoom: number
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onFitWidth: () => void
+  onFitHeight: () => void
 }
 
-export function BookToolbar({ currentPage, totalPages, onPageChange, onToggleEditing }: BookToolbarProps) {
+export function BookToolbar({
+  currentPage, totalPages, onPageChange, onToggleEditing,
+  zoom, onZoomIn, onZoomOut, onFitWidth, onFitHeight,
+}: BookToolbarProps) {
   const isEditing = useBookLayoutStore((s) => s.isEditing)
   const layoutConfig = useBookLayoutStore((s) => s.layoutConfig)
   const resetToAuto = useBookLayoutStore((s) => s.resetToAuto)
@@ -73,8 +81,41 @@ export function BookToolbar({ currentPage, totalPages, onPageChange, onToggleEdi
         </button>
       </div>
 
-      {/* Right: spacer for balance */}
-      <div className="w-24" />
+      {/* Right: Zoom controls */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onZoomOut}
+          title="Reducir"
+          className={btnClass()}
+        >
+          <ZoomOut size={15} />
+        </button>
+        <span className="text-[11px] min-w-[40px] text-center text-[var(--app-fg3)] tabular-nums">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          onClick={onZoomIn}
+          title="Ampliar"
+          className={btnClass()}
+        >
+          <ZoomIn size={15} />
+        </button>
+        <div className="w-px h-4 bg-[var(--app-border)] mx-1" />
+        <button
+          onClick={onFitWidth}
+          title="Ajustar al ancho"
+          className={btnClass()}
+        >
+          <ArrowLeftRight size={15} />
+        </button>
+        <button
+          onClick={onFitHeight}
+          title="Ajustar a la altura"
+          className={btnClass()}
+        >
+          <Maximize2 size={15} />
+        </button>
+      </div>
     </div>
   )
 }

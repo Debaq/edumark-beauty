@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import type { BookNode } from '@/hooks/useBookPagination'
 import type { PageLayout } from '@/types/bookLayout'
-import { LAYOUT_GRID_CSS } from './BookPage'
+import { LAYOUT_CONTENT_CSS } from './BookPage'
 
 interface Props {
   pages: BookNode[][]
@@ -15,7 +15,6 @@ interface Props {
 }
 
 const THUMB_WIDTH = 120
-const THUMB_GAP = 8
 
 export function BookThumbnails({
   pages,
@@ -57,10 +56,7 @@ export function BookThumbnails({
                 height: pageHeightPx,
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
-                display: 'grid',
-                ...LAYOUT_GRID_CSS[layout],
-                gap: '0px',
-                alignContent: 'start',
+                ...LAYOUT_CONTENT_CSS[layout] || {},
                 padding: '20px',
                 overflow: 'hidden',
               }}

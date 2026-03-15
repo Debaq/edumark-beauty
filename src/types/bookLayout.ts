@@ -1,9 +1,9 @@
-export type PageLayout = 'stack' | 'two-columns' | 'grid-2x2' | 'sidebar-left' | 'sidebar-right'
+export type PageLayout = 'stack' | 'two-columns'
 
 export interface BlockProps {
-  /** Columns this block spans (e.g. 2 in two-columns = full width) */
-  gridSpan?: number
-  /** Order within the grid */
+  /** If true, block spans all columns (column-span: all) */
+  fullWidth?: boolean
+  /** Order within the page */
   order?: number
 }
 
@@ -26,7 +26,4 @@ export const DEFAULT_BLOCK_PROPS: BlockProps = {}
 export const PAGE_LAYOUTS: { id: PageLayout; label: string }[] = [
   { id: 'stack', label: 'Una columna' },
   { id: 'two-columns', label: 'Dos columnas' },
-  { id: 'grid-2x2', label: 'Grid 2×2' },
-  { id: 'sidebar-left', label: 'Sidebar izquierda' },
-  { id: 'sidebar-right', label: 'Sidebar derecha' },
 ]

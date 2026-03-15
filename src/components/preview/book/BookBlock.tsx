@@ -14,6 +14,7 @@ interface BookBlockProps {
   onSelect: () => void
   pageIndex: number
   totalPages: number
+  isTwoColumns: boolean
 }
 
 interface BlockInfo {
@@ -91,6 +92,11 @@ function extractSnippet(html: string): string {
   return text.length > 40 ? text.slice(0, 37) + '...' : text
 }
 
+/** Check if block HTML is an edm pedagogical block */
+function isEdmBlock(html: string): boolean {
+  return /class="[^"]*edm-/.test(html)
+}
+
 export function BookBlock({
   node,
   blockProps,
@@ -99,6 +105,7 @@ export function BookBlock({
   onSelect,
   pageIndex,
   totalPages,
+  isTwoColumns,
 }: BookBlockProps) {
   const {
     attributes,
@@ -117,8 +124,17 @@ export function BookBlock({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    gridColumn: blockProps?.gridSpan ? `span ${blockProps.gridSpan}` : undefined,
     order: blockProps?.order,
+  }
+
+  // In two-columns mode: edm blocks avoid breaking, fullWidth spans all columns
+  if (isTwoColumns) {
+    if (isEdmBlock(node.html)) {
+      sortableStyle.breakInside = 'avoid'
+    }
+    if (blockProps?.fullWidth) {
+      sortableStyle.columnSpan = 'all'
+    }
   }
 
   const moveBlockToPage = useBookLayoutStore((s) => s.moveBlockToPage)
