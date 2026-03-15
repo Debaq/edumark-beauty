@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { Lock, Unlock } from 'lucide-react'
 import { useUIStore } from '@/store/ui'
+import { useDocumentStore } from '@/store/document'
 import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
 import { Preview, type PreviewHandle } from '@/components/preview/Preview'
 
@@ -57,6 +58,7 @@ export function Panels() {
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
 
+  const html = useDocumentStore((s) => s.html)
   const editorRef = useRef<EdmEditorHandle>(null)
   const previewRef = useRef<PreviewHandle>(null)
   const isSyncing = useRef(false)
@@ -185,7 +187,7 @@ export function Panels() {
     }, 200)
 
     return () => clearTimeout(timer)
-  }, [viewMode, scrollSync])
+  }, [viewMode, scrollSync, html])
 
   if (viewMode === 'editor') {
     return (
@@ -215,9 +217,9 @@ export function Panels() {
         <button
           onClick={toggleScrollSync}
           title={scrollSync ? 'Desactivar scroll sincronizado' : 'Activar scroll sincronizado'}
-          className="p-1.5 text-[var(--app-fg3)] hover:text-[var(--app-accent)] transition-colors z-10"
+          className="p-2 text-[var(--app-fg2)] hover:text-[var(--app-accent)] transition-colors z-10"
         >
-          {scrollSync ? <Lock size={12} /> : <Unlock size={12} />}
+          {scrollSync ? <Lock size={16} /> : <Unlock size={16} />}
         </button>
         <div
           onMouseDown={handleMouseDown}
