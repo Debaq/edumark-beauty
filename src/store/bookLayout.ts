@@ -19,6 +19,7 @@ interface BookLayoutStore {
   setLayoutConfig: (config: BookLayoutConfig | null) => void
   loadFromSource: (config: BookLayoutConfig | null) => void
   moveBlock: (fromPage: number, fromIndex: number, toPage: number, toIndex: number) => void
+  moveBlockToPage: (blockId: string, targetPage: number, position: 'start' | 'end') => void
   setPageLayout: (pageIndex: number, layout: PageLayout) => void
   setBlockProps: (pageIndex: number, blockId: string, props: Partial<BlockProps>) => void
   selectBlock: (blockId: string | null) => void
@@ -26,14 +27,17 @@ interface BookLayoutStore {
   toggleEditing: () => void
   setEditing: (editing: boolean) => void
   resetToAuto: () => void
-  freeBlock: (pageIndex: number, blockId: string, x: number, y: number) => void
-  gridBlock: (pageIndex: number, blockId: string) => void
   setTotalPages: (total: number) => void
   /** Initialize manual layout from auto-paginated pages */
   initFromAutoPages: (pages: { nodeId: string }[][]) => void
+  /** Force immediate persist (e.g. before PDF export) */
+  flushPersist: () => void
 }
 
-function persistConfig(config: BookLayoutConfig | null) {
+let persistTimer: ReturnType<typeof setTimeout> | null = null
+let pendingConfig: BookLayoutConfig | null | undefined = undefined
+
+function doPersist(config: BookLayoutConfig | null) {
   const source = useDocumentStore.getState().source
   let newSource: string
   if (config) {
@@ -46,6 +50,29 @@ function persistConfig(config: BookLayoutConfig | null) {
   }
 }
 
+function debouncedPersist(config: BookLayoutConfig | null, delay = 500) {
+  pendingConfig = config
+  if (persistTimer) clearTimeout(persistTimer)
+  persistTimer = setTimeout(() => {
+    if (pendingConfig !== undefined) {
+      doPersist(pendingConfig)
+      pendingConfig = undefined
+    }
+    persistTimer = null
+  }, delay)
+}
+
+function flushPendingPersist() {
+  if (persistTimer) {
+    clearTimeout(persistTimer)
+    persistTimer = null
+  }
+  if (pendingConfig !== undefined) {
+    doPersist(pendingConfig)
+    pendingConfig = undefined
+  }
+}
+
 export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
   layoutConfig: null,
   selectedBlockId: null,
@@ -55,7 +82,7 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
   setLayoutConfig: (config) => {
     set({ layoutConfig: config })
-    persistConfig(config)
+    debouncedPersist(config)
   },
 
   loadFromSource: (config) => {
@@ -87,7 +114,50 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
     const newConfig = { ...layoutConfig, pages }
     set({ layoutConfig: newConfig })
-    persistConfig(newConfig)
+    debouncedPersist(newConfig)
+  },
+
+  moveBlockToPage: (blockId, targetPage, position) => {
+    const { layoutConfig } = get()
+    if (!layoutConfig) return
+
+    const pages = structuredClone(layoutConfig.pages)
+
+    // Find current page
+    let fromPageIdx = -1
+    let fromBlockIdx = -1
+    for (let p = 0; p < pages.length; p++) {
+      const idx = pages[p].blockIds.indexOf(blockId)
+      if (idx >= 0) {
+        fromPageIdx = p
+        fromBlockIdx = idx
+        break
+      }
+    }
+    if (fromPageIdx < 0 || fromBlockIdx < 0) return
+    if (targetPage < 0 || targetPage >= pages.length) return
+    if (fromPageIdx === targetPage) return
+
+    const srcPage = pages[fromPageIdx]
+    const dstPage = pages[targetPage]
+
+    srcPage.blockIds.splice(fromBlockIdx, 1)
+    if (position === 'start') {
+      dstPage.blockIds.unshift(blockId)
+    } else {
+      dstPage.blockIds.push(blockId)
+    }
+
+    // Move props
+    const props = srcPage.blockProps[blockId]
+    if (props) {
+      delete srcPage.blockProps[blockId]
+      dstPage.blockProps[blockId] = props
+    }
+
+    const newConfig = { ...layoutConfig, pages }
+    set({ layoutConfig: newConfig, selectedPageIndex: targetPage })
+    debouncedPersist(newConfig)
   },
 
   setPageLayout: (pageIndex, layout) => {
@@ -100,7 +170,7 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
     pages[pageIndex].layout = layout
     const newConfig = { ...layoutConfig, pages }
     set({ layoutConfig: newConfig })
-    persistConfig(newConfig)
+    debouncedPersist(newConfig)
   },
 
   setBlockProps: (pageIndex, blockId, props) => {
@@ -118,7 +188,7 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
     const newConfig = { ...layoutConfig, pages }
     set({ layoutConfig: newConfig })
-    persistConfig(newConfig)
+    debouncedPersist(newConfig)
   },
 
   selectBlock: (blockId) => set({ selectedBlockId: blockId }),
@@ -134,47 +204,14 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
   resetToAuto: () => {
     set({ layoutConfig: null, isEditing: false, selectedBlockId: null })
-    persistConfig(null)
+    doPersist(null)
   },
 
-  freeBlock: (pageIndex, blockId, x, y) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
-
-    const pages = structuredClone(layoutConfig.pages)
-    const page = pages[pageIndex]
-    if (!page) return
-
-    page.blockProps[blockId] = {
-      ...(page.blockProps[blockId] || DEFAULT_BLOCK_PROPS),
-      positioning: 'free',
-      x,
-      y,
-    }
-
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig })
-    persistConfig(newConfig)
+  setTotalPages: (total) => {
+    const { selectedPageIndex } = get()
+    const clamped = total > 0 ? Math.min(selectedPageIndex, total - 1) : 0
+    set({ totalPages: total, selectedPageIndex: clamped })
   },
-
-  gridBlock: (pageIndex, blockId) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
-
-    const pages = structuredClone(layoutConfig.pages)
-    const page = pages[pageIndex]
-    if (!page) return
-
-    page.blockProps[blockId] = {
-      positioning: 'grid',
-    }
-
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig })
-    persistConfig(newConfig)
-  },
-
-  setTotalPages: (total) => set({ totalPages: total }),
 
   initFromAutoPages: (pages) => {
     const pageConfigs: PageConfig[] = pages.map((pageNodes) => ({
@@ -191,6 +228,10 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
     }
 
     set({ layoutConfig: config })
-    persistConfig(config)
+    doPersist(config)
+  },
+
+  flushPersist: () => {
+    flushPendingPersist()
   },
 }))

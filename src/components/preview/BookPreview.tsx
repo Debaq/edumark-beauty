@@ -154,8 +154,11 @@ export function BookPreview() {
     return layoutConfig.pages[selectedBlockPage]?.blockProps[selectedBlockId]
   }, [selectedBlockPage, layoutConfig, selectedBlockId])
 
+  // Clamp selectedPageIndex to valid range
+  const safePageIndex = pages.length > 0 ? Math.min(selectedPageIndex, pages.length - 1) : 0
+
   // Current page layout for layout selector
-  const currentPageLayout = layoutConfig?.pages[selectedPageIndex]?.layout ?? 'stack'
+  const currentPageLayout = layoutConfig?.pages[safePageIndex]?.layout ?? 'stack'
 
   if (!html) {
     return (
@@ -193,8 +196,8 @@ export function BookPreview() {
       />
       <style>{`.edm-book-measure { ${bookThemeCss} }`}</style>
 
-      {/* Scrollable page area */}
-      <div className="flex-1 overflow-auto">
+      {/* Scrollable page area — shows only the selected page */}
+      <div className="flex-1 overflow-auto flex items-center justify-center">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -202,7 +205,10 @@ export function BookPreview() {
           onDragEnd={handleDragEnd}
         >
           <div className="edm-book-pages" style={{ padding: '32px 16px' }}>
-            {pages.map((pageNodes, i) => {
+            {pages.length > 0 && (() => {
+              const i = safePageIndex
+              const pageNodes = pages[i]
+              if (!pageNodes) return null
               const pageConf = layoutConfig?.pages[i]
               const layout = pageConf?.layout ?? 'stack'
               const blockProps = pageConf?.blockProps ?? {}
@@ -233,7 +239,7 @@ export function BookPreview() {
                   contentHeightPx={contentHeightPx}
                 />
               )
-            })}
+            })()}
           </div>
 
           <DragOverlay>
@@ -269,13 +275,13 @@ export function BookPreview() {
       {isEditing && layoutConfig && (
         <BookLayoutSelector
           currentLayout={currentPageLayout}
-          onSelectLayout={(layout) => setPageLayout(selectedPageIndex, layout)}
+          onSelectLayout={(layout) => setPageLayout(safePageIndex, layout)}
         />
       )}
 
       {/* Bottom toolbar */}
       <BookToolbar
-        currentPage={selectedPageIndex}
+        currentPage={safePageIndex}
         totalPages={pages.length}
         onPageChange={setSelectedPageIndex}
         onToggleEditing={handleToggleEditing}
