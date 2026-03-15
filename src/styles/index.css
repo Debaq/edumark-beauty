@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* ── Variables de la app (UI, no preview) ─────────── */
+:root {
+  --app-bg: #0f1117;
+  --app-bg1: #161822;
+  --app-bg2: #1e2030;
+  --app-fg: #e2e4f0;
+  --app-fg1: #c0c4d8;
+  --app-fg2: #8b90a8;
+  --app-fg3: #5c6180;
+  --app-accent: #7c5cfc;
+  --app-accent-soft: rgba(124, 92, 252, 0.1);
+  --app-border: #2a2d3e;
+  --app-border-hover: #3a3e55;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar personalizado ──────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-border-hover);
+}
+
+/* ── Animaciones ──────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-from-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-from-left {
+  from { opacity: 0; transform: translateX(-100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
+}
+
+/* ── CodeMirror overrides ─────────────────────────── */
+.cm-editor {
+  height: 100% !important;
+  font-size: 14px;
+}
+
+.cm-editor .cm-scroller {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.cm-focused {
+  outline: none !important;
+}

@@ -1,0 +1,420 @@
+/* ══════════════════════════════════════════════════════
+   Preview Base CSS — Estilos para el contenido Edumark
+   Usa variables --t-* definidas por el tema activo
+   ══════════════════════════════════════════════════════ */
+
+.edm-preview {
+  background: var(--t-bg);
+  color: var(--t-fg);
+  font-family: var(--t-body-font);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  max-width: var(--t-content-max-width);
+  margin: 0 auto;
+  padding: var(--t-content-padding);
+}
+
+/* ─── Hero ─────────────────────────────────────────── */
+.edm-preview .edm-hero {
+  text-align: center;
+  padding: 3em 1.5em;
+  margin-bottom: var(--t-card-gap);
+  background: var(--t-bg1);
+  border-radius: var(--t-card-radius);
+  border: var(--t-card-border-width) solid var(--t-border);
+}
+
+.edm-preview .edm-hero h1 {
+  font-family: var(--t-heading-font);
+  font-size: var(--t-hero-size);
+  font-weight: 800;
+  color: var(--t-fg);
+  margin: 0 0 0.3em 0;
+  line-height: 1.15;
+}
+
+.edm-preview .edm-hero .edm-hero-subtitle {
+  font-size: 1.15em;
+  color: var(--t-fg2);
+}
+
+.edm-preview .edm-hero .edm-hero-meta {
+  margin-top: 1em;
+  font-size: 0.9em;
+  color: var(--t-fg3);
+}
+
+/* ─── Encabezados ──────────────────────────────────── */
+.edm-preview h1 {
+  font-family: var(--t-heading-font);
+  font-size: var(--t-h1-size);
+  font-weight: 700;
+  color: var(--t-fg);
+  margin: 1.5em 0 0.6em;
+  line-height: 1.2;
+}
+
+.edm-preview h2 {
+  font-family: var(--t-heading-font);
+  font-size: var(--t-h2-size);
+  font-weight: 600;
+  color: var(--t-fg);
+  margin: 1.8em 0 0.6em;
+  padding-bottom: 0.4em;
+  border-bottom: 3px solid transparent;
+  border-image: var(--t-h2-bar) 1;
+}
+
+.edm-preview h3 {
+  font-family: var(--t-heading-font);
+  font-size: var(--t-h3-size);
+  font-weight: 600;
+  color: var(--t-fg1);
+  margin: 1.4em 0 0.5em;
+}
+
+/* ─── Párrafos y texto ─────────────────────────────── */
+.edm-preview p {
+  margin: 0.8em 0;
+  color: var(--t-fg1);
+}
+
+.edm-preview strong {
+  color: var(--t-fg);
+  font-weight: 600;
+}
+
+.edm-preview em {
+  color: var(--t-fg1);
+}
+
+.edm-preview a {
+  color: var(--t-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--t-accent-border);
+  transition: border-color 0.2s;
+}
+
+.edm-preview a:hover {
+  border-bottom-color: var(--t-accent);
+}
+
+/* ─── Listas ───────────────────────────────────────── */
+.edm-preview ul,
+.edm-preview ol {
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+  color: var(--t-fg1);
+}
+
+.edm-preview li {
+  margin: 0.3em 0;
+}
+
+.edm-preview li::marker {
+  color: var(--t-accent);
+}
+
+/* ─── Código inline ────────────────────────────────── */
+.edm-preview code {
+  font-family: var(--t-mono-font);
+  font-size: 0.88em;
+  background: var(--t-bg2);
+  color: var(--t-accent);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+.edm-preview pre {
+  background: var(--t-bg1);
+  border: var(--t-card-border-width) solid var(--t-border);
+  border-radius: var(--t-card-radius);
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.edm-preview pre code {
+  background: none;
+  padding: 0;
+  color: var(--t-fg);
+}
+
+/* ─── Bloques / Cards ──────────────────────────────── */
+.edm-preview .edm-block {
+  margin: var(--t-card-gap) 0;
+  border-radius: var(--t-card-radius);
+  border: var(--t-card-border-width) solid var(--t-border);
+  box-shadow: var(--t-card-shadow);
+  overflow: hidden;
+  background: var(--t-bg);
+}
+
+.edm-preview .edm-block-header {
+  display: var(--t-card-show-header);
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.7em 1em;
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--t-card-header-bg);
+  border-bottom: var(--t-card-border-width) solid var(--t-border);
+}
+
+.edm-preview .edm-block-header .edm-block-icon {
+  display: var(--t-card-show-icons);
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  font-size: 1.1em;
+}
+
+.edm-preview .edm-block-body {
+  padding: 1em 1.2em;
+}
+
+/* ─── Colores por tipo de bloque ───────────────────── */
+.edm-preview .edm-block.edm-definition {
+  border-left: 4px solid var(--t-blue);
+  background: var(--t-blue-soft);
+}
+.edm-preview .edm-block.edm-definition .edm-block-header { color: var(--t-blue); }
+
+.edm-preview .edm-block.edm-key-concept {
+  border-left: 4px solid var(--t-green);
+  background: var(--t-green-soft);
+}
+.edm-preview .edm-block.edm-key-concept .edm-block-header { color: var(--t-green); }
+
+.edm-preview .edm-block.edm-note,
+.edm-preview .edm-block.edm-aside {
+  border-left: 4px solid var(--t-yellow);
+  background: var(--t-yellow-soft);
+}
+.edm-preview .edm-block.edm-note .edm-block-header,
+.edm-preview .edm-block.edm-aside .edm-block-header { color: var(--t-yellow); }
+
+.edm-preview .edm-block.edm-warning {
+  border-left: 4px solid var(--t-orange);
+  background: var(--t-orange-soft);
+}
+.edm-preview .edm-block.edm-warning .edm-block-header { color: var(--t-orange); }
+
+.edm-preview .edm-block.edm-example,
+.edm-preview .edm-block.edm-application {
+  border-left: 4px solid var(--t-teal);
+  background: var(--t-teal-soft);
+}
+.edm-preview .edm-block.edm-example .edm-block-header,
+.edm-preview .edm-block.edm-application .edm-block-header { color: var(--t-teal); }
+
+.edm-preview .edm-block.edm-exercise,
+.edm-preview .edm-block.edm-question {
+  border-left: 4px solid var(--t-accent);
+  background: var(--t-accent-soft);
+}
+.edm-preview .edm-block.edm-exercise .edm-block-header,
+.edm-preview .edm-block.edm-question .edm-block-header { color: var(--t-accent); }
+
+.edm-preview .edm-block.edm-mnemonic,
+.edm-preview .edm-block.edm-history {
+  border-left: 4px solid var(--t-pink);
+  background: var(--t-pink-soft);
+}
+.edm-preview .edm-block.edm-mnemonic .edm-block-header,
+.edm-preview .edm-block.edm-history .edm-block-header { color: var(--t-pink); }
+
+.edm-preview .edm-block.edm-summary {
+  border-left: 4px solid var(--t-green);
+  background: var(--t-green-soft);
+}
+.edm-preview .edm-block.edm-summary .edm-block-header { color: var(--t-green); }
+
+.edm-preview .edm-block.edm-objective {
+  border-left: 4px solid var(--t-accent);
+  background: var(--t-accent-soft);
+}
+.edm-preview .edm-block.edm-objective .edm-block-header { color: var(--t-accent); }
+
+.edm-preview .edm-block.edm-comparison {
+  border-left: 4px solid var(--t-blue);
+  background: var(--t-blue-soft);
+}
+.edm-preview .edm-block.edm-comparison .edm-block-header { color: var(--t-blue); }
+
+.edm-preview .edm-block.edm-reference {
+  border-left: 4px solid var(--t-fg3);
+  background: var(--t-muted-soft);
+}
+.edm-preview .edm-block.edm-reference .edm-block-header { color: var(--t-fg3); }
+
+.edm-preview .edm-block.edm-solution {
+  border-left: 4px solid var(--t-green);
+  background: var(--t-green-soft);
+}
+.edm-preview .edm-block.edm-solution .edm-block-header { color: var(--t-green); }
+
+/* ─── Definiciones dentro de bloques ───────────────── */
+.edm-preview .edm-def-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.edm-preview .edm-def-item {
+  padding: 0.6em 0;
+  border-bottom: 1px solid var(--t-border);
+}
+
+.edm-preview .edm-def-item:last-child {
+  border-bottom: none;
+}
+
+.edm-preview .edm-def-term {
+  font-weight: 600;
+  color: var(--t-fg);
+}
+
+.edm-preview .edm-def-desc {
+  color: var(--t-fg1);
+  margin-top: 0.2em;
+}
+
+/* ─── Preguntas ────────────────────────────────────── */
+.edm-preview .edm-options {
+  list-style: none;
+  padding: 0;
+  margin: 0.6em 0;
+}
+
+.edm-preview .edm-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+  padding: 0.5em 0.8em;
+  margin: 0.3em 0;
+  border-radius: 8px;
+  background: var(--t-muted-soft);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.edm-preview .edm-option:hover {
+  background: var(--t-bg2);
+  border-color: var(--t-border);
+}
+
+.edm-preview .edm-option-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  border: 2px solid var(--t-border);
+  font-size: 0.75em;
+  font-weight: 600;
+  color: var(--t-fg2);
+  flex-shrink: 0;
+}
+
+.edm-preview .edm-option.edm-correct .edm-option-marker {
+  background: var(--t-green);
+  border-color: var(--t-green);
+  color: white;
+}
+
+/* ─── Tablas ───────────────────────────────────────── */
+.edm-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.92em;
+}
+
+.edm-preview thead {
+  background: var(--t-table-head);
+}
+
+.edm-preview th {
+  padding: 0.7em 1em;
+  text-align: left;
+  font-weight: 600;
+  color: var(--t-fg);
+  border-bottom: 2px solid var(--t-border);
+}
+
+.edm-preview td {
+  padding: 0.6em 1em;
+  border-bottom: var(--t-table-border-style) 1px var(--t-border);
+  color: var(--t-fg1);
+}
+
+.edm-preview tbody tr:nth-child(even) {
+  background: var(--t-table-striped-bg);
+}
+
+.edm-preview tbody tr:hover {
+  background: var(--t-table-hover-bg);
+}
+
+/* ─── Imágenes ─────────────────────────────────────── */
+.edm-preview .edm-image-block {
+  text-align: center;
+  margin: var(--t-card-gap) 0;
+}
+
+.edm-preview .edm-image-block img {
+  max-width: 100%;
+  border-radius: var(--t-card-radius);
+  border: var(--t-card-border-width) solid var(--t-border);
+}
+
+.edm-preview .edm-image-caption {
+  font-size: 0.88em;
+  color: var(--t-fg2);
+  margin-top: 0.5em;
+  font-style: italic;
+}
+
+/* ─── KaTeX / Matemáticas ──────────────────────────── */
+.edm-preview .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+.edm-preview .katex {
+  color: var(--t-fg);
+}
+
+/* ─── Mermaid ──────────────────────────────────────── */
+.edm-preview .edm-diagram {
+  margin: var(--t-card-gap) 0;
+  text-align: center;
+}
+
+.edm-preview .edm-diagram svg {
+  max-width: 100%;
+}
+
+/* ─── Blockquotes ──────────────────────────────────── */
+.edm-preview blockquote {
+  border-left: 3px solid var(--t-accent);
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  color: var(--t-fg2);
+  background: var(--t-muted-soft);
+  border-radius: 0 var(--t-card-radius) var(--t-card-radius) 0;
+}
+
+/* ─── Separadores ──────────────────────────────────── */
+.edm-preview hr {
+  border: none;
+  height: 1px;
+  background: var(--t-border);
+  margin: 2em 0;
+}
