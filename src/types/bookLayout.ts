@@ -19,6 +19,8 @@ export interface BookLayoutConfig {
   /** true = the user has manually edited the layout */
   isManual: boolean
   pages: PageConfig[]
+  /** Gap between columns in px (default 24) */
+  columnGap?: number
 }
 
 export const DEFAULT_BLOCK_PROPS: BlockProps = {}

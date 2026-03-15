@@ -30,6 +30,7 @@ interface BookLayoutStore {
   setTotalPages: (total: number) => void
   /** Initialize manual layout from auto-paginated pages */
   initFromAutoPages: (pages: { nodeId: string }[][]) => void
+  setColumnGap: (gap: number) => void
   /** Force immediate persist (e.g. before PDF export) */
   flushPersist: () => void
 }
@@ -229,6 +230,14 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
     set({ layoutConfig: config })
     doPersist(config)
+  },
+
+  setColumnGap: (gap) => {
+    const { layoutConfig } = get()
+    if (!layoutConfig) return
+    const newConfig = { ...layoutConfig, columnGap: gap }
+    set({ layoutConfig: newConfig })
+    debouncedPersist(newConfig)
   },
 
   flushPersist: () => {

@@ -31,6 +31,7 @@ export function BookPreview() {
   const themeConfig = useThemeStore((s) => s.config)
 
   const layoutConfig = useBookLayoutStore((s) => s.layoutConfig)
+  const columnGap = layoutConfig?.columnGap ?? 24
   const isEditing = useBookLayoutStore((s) => s.isEditing)
   const selectedBlockId = useBookLayoutStore((s) => s.selectedBlockId)
   const selectedPageIndex = useBookLayoutStore((s) => s.selectedPageIndex)
@@ -281,6 +282,7 @@ export function BookPreview() {
           pageWidthPx={pageWidthPx}
           pageHeightPx={pageHeightPx}
           bookThemeCss={bookThemeCss}
+          columnGap={columnGap}
         />
 
         {/* Scrollable page area */}
@@ -329,6 +331,7 @@ export function BookPreview() {
                       }}
                       bookThemeCss={bookThemeCss}
                       totalPages={pages.length}
+                      columnGap={columnGap}
                       onChangeLayout={(layout) => setPageLayout(i, layout)}
                     />
                   )
@@ -372,6 +375,7 @@ export function BookPreview() {
                       }}
                       bookThemeCss={bookThemeCss}
                       totalPages={pages.length}
+                      columnGap={columnGap}
                     />
                   )
                 })()}

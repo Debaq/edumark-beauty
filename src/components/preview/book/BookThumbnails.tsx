@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import type { BookNode } from '@/hooks/useBookPagination'
 import type { PageLayout } from '@/types/bookLayout'
-import { LAYOUT_CONTENT_CSS } from './BookPage'
+import { getLayoutContentCss } from './BookPage'
 
 interface Props {
   pages: BookNode[][]
@@ -12,6 +12,7 @@ interface Props {
   pageWidthPx: number
   pageHeightPx: number
   bookThemeCss: string
+  columnGap: number
 }
 
 const THUMB_WIDTH = 120
@@ -24,6 +25,7 @@ export function BookThumbnails({
   pageWidthPx,
   pageHeightPx,
   bookThemeCss,
+  columnGap,
 }: Props) {
   const activeRef = useRef<HTMLButtonElement>(null)
 
@@ -56,7 +58,7 @@ export function BookThumbnails({
                 height: pageHeightPx,
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
-                ...LAYOUT_CONTENT_CSS[layout] || {},
+                ...getLayoutContentCss(layout, columnGap),
                 padding: '20px',
                 overflow: 'hidden',
               }}

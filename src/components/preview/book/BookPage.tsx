@@ -5,10 +5,12 @@ import type { BookNode } from '@/hooks/useBookPagination'
 import { BookBlock } from './BookBlock'
 import { BookPageLayoutBar } from './BookPageLayoutBar'
 
-/** CSS for page content area based on layout */
-export const LAYOUT_CONTENT_CSS: Record<PageLayout, React.CSSProperties> = {
-  'stack': {},
-  'two-columns': { columnCount: 2, columnGap: '24px' },
+/** CSS for page content area based on layout (preview only, NOT editing) */
+export function getLayoutContentCss(layout: PageLayout, columnGap: number): React.CSSProperties {
+  if (layout === 'two-columns') {
+    return { columnCount: 2, columnGap: `${columnGap}px` }
+  }
+  return {}
 }
 
 interface BookPageProps {
@@ -22,6 +24,7 @@ interface BookPageProps {
   style: React.CSSProperties
   bookThemeCss: string
   totalPages: number
+  columnGap: number
   onChangeLayout?: (layout: PageLayout) => void
 }
 
@@ -36,6 +39,7 @@ export function BookPage({
   style,
   bookThemeCss,
   totalPages,
+  columnGap,
   onChangeLayout,
 }: BookPageProps) {
   const droppableId = `page-${pageIndex}`
@@ -43,6 +47,12 @@ export function BookPage({
 
   const blockIds = nodes.map((n) => n.nodeId)
   const isTwoColumns = layout === 'two-columns'
+
+  // In editing mode: NEVER apply column-count (breaks dnd-kit)
+  // Only apply columns in preview mode
+  const contentStyle: React.CSSProperties = isEditing
+    ? { minHeight: 0 }
+    : { ...getLayoutContentCss(layout, columnGap), minHeight: 0 }
 
   return (
     <div
@@ -64,7 +74,7 @@ export function BookPage({
       )}
 
       <div ref={setNodeRef} style={{ position: 'relative', height: '100%' }}>
-        {/* Column guide for two-columns */}
+        {/* Column guide for two-columns (editing only) */}
         {isEditing && isTwoColumns && (
           <div
             className="edm-book-column-guide"
@@ -72,14 +82,11 @@ export function BookPage({
           />
         )}
 
-        {/* Page content area — uses CSS columns for two-columns */}
+        {/* Page content area */}
         <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
           <div
             className="edm-book-page-content edm-preview"
-            style={{
-              ...LAYOUT_CONTENT_CSS[layout] || {},
-              minHeight: 0,
-            }}
+            style={contentStyle}
           >
             <style>{`.edm-book-page-content.edm-preview { ${bookThemeCss} }`}</style>
             {nodes.map((node) => {
@@ -94,7 +101,7 @@ export function BookPage({
                   onSelect={() => onSelectBlock(node.nodeId)}
                   pageIndex={pageIndex}
                   totalPages={totalPages}
-                  isTwoColumns={isTwoColumns}
+                  isTwoColumns={isTwoColumns && !isEditing}
                 />
               )
             })}

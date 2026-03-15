@@ -5,7 +5,7 @@ const HEADING_TAGS = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR'])
 
 /** Check if an element is an edm pedagogical block */
 function isEdmBlock(el: Element): boolean {
-  return el.className && /\bedm-/.test(el.className)
+  return typeof el.className === 'string' && /\bedm-/.test(el.className)
 }
 
 /**

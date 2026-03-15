@@ -60,9 +60,7 @@ export async function exportBookDocx(
         children.push(...parseElement(el))
       }
 
-      const columnCount = pageConf.layout === 'two-columns' ? 2
-        : pageConf.layout === 'sidebar-left' || pageConf.layout === 'sidebar-right' ? 2
-        : 1
+      const columnCount = pageConf.layout === 'two-columns' ? 2 : 1
 
       return {
         properties: {

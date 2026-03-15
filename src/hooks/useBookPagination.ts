@@ -121,6 +121,10 @@ export function useBookPagination() {
   const [pages, setPages] = useState<BookNode[][]>([])
   const [allNodes, setAllNodes] = useState<BookNode[]>([])
 
+  // Track last html used for node extraction to avoid redundant work
+  const lastHtmlRef = useRef<string>('')
+  const cachedNodesRef = useRef<BookNode[]>([])
+
   const pageWidthPx = mmToPx(pageConfig.width)
   const pageHeightPx = mmToPx(pageConfig.height)
   const paddingTop = mmToPx(pageConfig.margins.top)
@@ -139,6 +143,33 @@ export function useBookPagination() {
     }
   }, [source, loadFromSource])
 
+  // In manual mode, rebuild pages from layoutConfig without re-measuring DOM
+  // This avoids the expensive paginate→rAF cycle on every config change
+  const rebuildManualPages = useCallback(() => {
+    const config = useBookLayoutStore.getState().layoutConfig
+    if (!config?.isManual) return
+
+    // Use cached nodes if html hasn't changed
+    let nodes = cachedNodesRef.current
+    if (nodes.length === 0) {
+      const el = measureRef.current
+      if (!el) return
+      nodes = assignNodeIds(el)
+      cachedNodesRef.current = nodes
+      lastHtmlRef.current = html || ''
+    }
+
+    const nodeMap = new Map(nodes.map((n) => [n.nodeId, n]))
+    const manualPages: BookNode[][] = config.pages.map((pageConf) =>
+      pageConf.blockIds
+        .map((id) => nodeMap.get(id))
+        .filter((n): n is BookNode => n !== undefined)
+    )
+    setPages(manualPages)
+    setAllNodes(nodes)
+    setTotalPages(manualPages.length)
+  }, [html, setTotalPages])
+
   const paginate = useCallback(() => {
     const el = measureRef.current
     if (!el || !html) return
@@ -147,12 +178,12 @@ export function useBookPagination() {
     el.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
 
     requestAnimationFrame(() => {
-      // Always measure and assign IDs first
       const nodes = assignNodeIds(el)
+      cachedNodesRef.current = nodes
+      lastHtmlRef.current = html
       setAllNodes(nodes)
 
       if (layoutConfig?.isManual) {
-        // Manual mode: use stored page distribution
         const nodeMap = new Map(nodes.map((n) => [n.nodeId, n]))
         const manualPages: BookNode[][] = layoutConfig.pages.map((pageConf) =>
           pageConf.blockIds
@@ -162,7 +193,6 @@ export function useBookPagination() {
         setPages(manualPages)
         setTotalPages(manualPages.length)
       } else {
-        // Auto pagination
         const result = paginateNodes(el, contentHeight)
         setPages(result)
         setTotalPages(result.length)
@@ -170,14 +200,21 @@ export function useBookPagination() {
     })
   }, [html, contentHeight, layoutConfig, setTotalPages])
 
-  // Re-paginate when html or config changes
+  // Re-paginate when html changes (content actually changed)
   useEffect(() => {
     if (!html) return
     const timer = setTimeout(paginate, 100)
     return () => clearTimeout(timer)
   }, [html, paginate])
 
-  // Derive empty state outside of effects
+  // In manual mode, rebuild pages immediately when layoutConfig changes
+  // WITHOUT waiting for html/DOM — just remap existing nodes
+  useEffect(() => {
+    if (!layoutConfig?.isManual) return
+    if (cachedNodesRef.current.length === 0) return // no nodes yet, wait for paginate
+    rebuildManualPages()
+  }, [layoutConfig, rebuildManualPages])
+
   const effectivePages = html ? pages : []
   const effectiveAllNodes = html ? allNodes : []
 

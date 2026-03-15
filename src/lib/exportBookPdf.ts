@@ -3,9 +3,9 @@ import type { PageConfig } from '@/types/contentMode'
 import type { BookLayoutConfig, PageLayout } from '@/types/bookLayout'
 import { exportFullHtml } from './exportHtml'
 
-const LAYOUT_CSS: Record<PageLayout, string> = {
-  'stack': '',
-  'two-columns': 'column-count:2;column-gap:24px;',
+function getLayoutCss(layout: PageLayout, columnGap: number): string {
+  if (layout === 'two-columns') return `column-count:2;column-gap:${columnGap}px;`
+  return ''
 }
 
 /**
@@ -57,7 +57,7 @@ export async function exportBookPdf(
         blocks.push(`<div${styleAttr}>${blockHtml}</div>`)
       }
 
-      const layoutCss = LAYOUT_CSS[pageConf.layout] || LAYOUT_CSS.stack
+      const layoutCss = getLayoutCss(pageConf.layout, bookLayout.columnGap ?? 24)
       return `<div style="${layoutCss}">${blocks.join('')}</div>`
     })
 

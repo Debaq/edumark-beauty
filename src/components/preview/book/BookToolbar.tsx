@@ -23,6 +23,9 @@ export function BookToolbar({
   const isEditing = useBookLayoutStore((s) => s.isEditing)
   const layoutConfig = useBookLayoutStore((s) => s.layoutConfig)
   const resetToAuto = useBookLayoutStore((s) => s.resetToAuto)
+  const setColumnGap = useBookLayoutStore((s) => s.setColumnGap)
+  const columnGap = layoutConfig?.columnGap ?? 24
+  const hasTwoColumns = layoutConfig?.pages.some((p) => p.layout === 'two-columns') ?? false
 
   const btnClass = (disabled?: boolean) =>
     `p-1.5 rounded-lg transition-colors text-[var(--app-fg2)] hover:bg-[var(--app-bg2)] ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`
@@ -57,6 +60,28 @@ export function BookToolbar({
           <span className="text-[10px] text-[var(--app-accent)] font-medium uppercase tracking-wider">
             Editando
           </span>
+        )}
+
+        {/* Column gap control — visible when editing and any page uses two-columns */}
+        {isEditing && hasTwoColumns && (
+          <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[var(--app-border)]">
+            <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider whitespace-nowrap">
+              Gap
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={60}
+              step={4}
+              value={columnGap}
+              onChange={(e) => setColumnGap(parseInt(e.target.value))}
+              className="w-16 h-1 accent-[var(--app-accent)]"
+              title={`Espacio entre columnas: ${columnGap}px`}
+            />
+            <span className="text-[10px] text-[var(--app-fg3)] tabular-nums w-6 text-right">
+              {columnGap}
+            </span>
+          </div>
         )}
       </div>
 
