@@ -332,8 +332,13 @@ function detectTemplate(
   isFirstWithFrontmatter: boolean,
   fmTitle: string,
 ): SlideTemplate {
-  // First slide with frontmatter that has a title → cover
+  // First slide with frontmatter that has a title → cover (legacy)
   if (isFirstWithFrontmatter && fmTitle) {
+    return 'cover'
+  }
+
+  // :::hero block → cover
+  if (/^:::hero\b/m.test(source)) {
     return 'cover'
   }
 
