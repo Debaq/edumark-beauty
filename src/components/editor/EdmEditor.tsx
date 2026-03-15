@@ -1,9 +1,13 @@
 import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { sectionColors } from './section-colors'
+import { blockNesting } from './block-nesting'
+import { codeHighlight } from './code-highlight'
+import { tableFormatter } from './table-formatter'
 import { useDocumentStore } from '@/store/document'
 import { decodeAsync } from 'edumark-js'
 
@@ -57,11 +61,16 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
     const state = EditorState.create({
       doc: source,
       extensions: [
+        lineNumbers(),
         markdown(),
         oneDark,
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         updateListener,
+        sectionColors,
+        blockNesting,
+        codeHighlight,
+        tableFormatter,
         EditorView.lineWrapping,
         EditorView.theme({
           '&': { height: '100%' },
