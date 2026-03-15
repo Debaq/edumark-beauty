@@ -6,11 +6,15 @@ interface UIStore {
   viewMode: ViewMode
   exportModalOpen: boolean
   configPanelOpen: boolean
+  helpModalOpen: boolean
+  scrollSync: boolean
   toasts: Toast[]
 
   setViewMode: (mode: ViewMode) => void
   setExportModalOpen: (open: boolean) => void
   setConfigPanelOpen: (open: boolean) => void
+  setHelpModalOpen: (open: boolean) => void
+  toggleScrollSync: () => void
   addToast: (message: string, type?: Toast['type']) => void
   removeToast: (id: string) => void
 }
@@ -27,11 +31,15 @@ export const useUIStore = create<UIStore>((set) => ({
   viewMode: 'split',
   exportModalOpen: false,
   configPanelOpen: false,
+  helpModalOpen: false,
+  scrollSync: true,
   toasts: [],
 
   setViewMode: (mode) => set({ viewMode: mode }),
   setExportModalOpen: (open) => set({ exportModalOpen: open }),
   setConfigPanelOpen: (open) => set({ configPanelOpen: open }),
+  setHelpModalOpen: (open) => set({ helpModalOpen: open }),
+  toggleScrollSync: () => set((s) => ({ scrollSync: !s.scrollSync })),
 
   addToast: (message, type = 'info') => {
     const id = `toast-${++toastCounter}`

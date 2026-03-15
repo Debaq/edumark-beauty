@@ -1,14 +1,23 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import katex from 'katex'
 
-export function Preview() {
+export interface PreviewHandle {
+  getScroller: () => HTMLElement | null
+}
+
+export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
   const html = useDocumentStore((s) => s.html)
   const themeConfig = useThemeStore((s) => s.config)
   const containerRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    getScroller: () => scrollerRef.current,
+  }))
 
   // Generar CSS del tema como custom properties
   const themeCssVars = useMemo(() => generateThemeCss(themeConfig), [themeConfig])
@@ -70,7 +79,7 @@ export function Preview() {
   }
 
   return (
-    <div className="h-full overflow-auto" style={{ background: themeConfig.bg }}>
+    <div ref={scrollerRef} className="h-full overflow-auto" style={{ background: themeConfig.bg }}>
       <style>{previewBaseCss}</style>
       <link
         rel="stylesheet"
@@ -89,4 +98,4 @@ export function Preview() {
       {themeConfig.customCss && <style>{themeConfig.customCss}</style>}
     </div>
   )
-}
+})

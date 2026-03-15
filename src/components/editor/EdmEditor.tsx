@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
@@ -7,12 +7,21 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { useDocumentStore } from '@/store/document'
 import { decode } from 'edumark-js'
 
-export function EdmEditor() {
+export interface EdmEditorHandle {
+  getScroller: () => HTMLElement | null
+}
+
+export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const source = useDocumentStore((s) => s.source)
   const setSource = useDocumentStore((s) => s.setSource)
   const setHtml = useDocumentStore((s) => s.setHtml)
+
+  useImperativeHandle(ref, () => ({
+    getScroller: () =>
+      containerRef.current?.querySelector<HTMLElement>('.cm-scroller') ?? null,
+  }))
 
   // Función para decodificar el fuente edm a HTML
   const decodeSource = useCallback(
@@ -90,4 +99,4 @@ export function EdmEditor() {
   return (
     <div ref={containerRef} className="h-full w-full overflow-hidden" />
   )
-}
+})
