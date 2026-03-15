@@ -28,12 +28,16 @@ export interface SlideConfig {
 }
 
 export interface Slide {
-  /** Raw markdown source for this slide */
+  /** Raw markdown source for this slide (includes metadata comment) */
   source: string
+  /** Source without metadata comment (used for rendering) */
+  content: string
   /** Rendered HTML */
   html: string
-  /** Auto-detected or manually set template */
+  /** Resolved template: metadata > auto-detect */
   template: SlideTemplate
+  /** Raw key-value pairs from <!-- slide: ... --> comment */
+  metadata: Record<string, string>
 }
 
 /** Paper size presets in mm */

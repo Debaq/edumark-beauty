@@ -8,11 +8,14 @@ import type { Slide } from '@/types/contentMode'
 /**
  * Hook that parses slides from document source when in presentation mode.
  * Runs on every source change — parseSlides + decodeAsync are fast enough.
+ *
+ * Template resolution: metadata comment > auto-detect.
+ * The `slideTemplates` store map is no longer used — source metadata is
+ * the single source of truth.
  */
 export function useSlides() {
   const source = useDocumentStore((s) => s.source)
   const setSlides = useContentModeStore((s) => s.setSlides)
-  const slideTemplates = useContentModeStore((s) => s.slideTemplates)
 
   useEffect(() => {
     if (!source) return
@@ -23,10 +26,15 @@ export function useSlides() {
       const rawSlides = parseSlides(source)
 
       const rendered: Slide[] = await Promise.all(
-        rawSlides.map(async (raw, i) => {
-          const html = await decodeAsync(raw.source)
-          const template = slideTemplates.get(i) ?? raw.template
-          return { source: raw.source, html, template }
+        rawSlides.map(async (raw) => {
+          const html = await decodeAsync(raw.content)
+          return {
+            source: raw.source,
+            content: raw.content,
+            html,
+            template: raw.template,
+            metadata: raw.metadata,
+          }
         })
       )
 
@@ -38,5 +46,5 @@ export function useSlides() {
     renderSlides()
 
     return () => { cancelled = true }
-  }, [source, setSlides, slideTemplates])
+  }, [source, setSlides])
 }

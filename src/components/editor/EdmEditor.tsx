@@ -12,6 +12,7 @@ import { tableFormatter } from './table-formatter'
 import { useDocumentStore } from '@/store/document'
 import { decodeAsync } from 'edumark-js'
 
+
 export interface EdmEditorHandle {
   getScroller: () => HTMLElement | null
   getView: () => EditorView | null
@@ -100,14 +101,18 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sincronizar cuando el source cambia externamente (ej: cargar archivo)
+  // Sincronizar cuando el source cambia externamente (ej: cargar archivo, metadata update)
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
     const currentDoc = view.state.doc.toString()
     if (currentDoc !== source) {
+      // Preservar posición del cursor (ajustada al nuevo largo)
+      const cursor = view.state.selection.main.head
+      const anchor = Math.min(cursor, source.length)
       view.dispatch({
         changes: { from: 0, to: currentDoc.length, insert: source },
+        selection: { anchor },
       })
       decodeSource(source)
     }

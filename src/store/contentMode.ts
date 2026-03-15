@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { ContentMode, PageConfig, SlideConfig, Slide, SlideTemplate } from '@/types/contentMode'
 import { PAPER_SIZES } from '@/types/contentMode'
+import { updateSlideMetadataInSource } from '@/lib/slideParser'
+import { useDocumentStore } from '@/store/document'
 
 interface ContentModeStore {
   contentMode: ContentMode
@@ -8,7 +10,6 @@ interface ContentModeStore {
   slideConfig: SlideConfig
   currentSlide: number
   slides: Slide[]
-  slideTemplates: Map<number, SlideTemplate>
   slideZoomOverrides: Map<number, number>
 
   setContentMode: (mode: ContentMode) => void
@@ -16,6 +17,10 @@ interface ContentModeStore {
   setSlideConfig: (config: SlideConfig) => void
   setCurrentSlide: (index: number) => void
   setSlides: (slides: Slide[]) => void
+  /**
+   * Update template for a slide by writing a `<!-- slide: template=... -->`
+   * comment into the document source. This triggers a re-parse automatically.
+   */
   setSlideTemplate: (index: number, template: SlideTemplate) => void
   setSlideZoom: (index: number, zoom: number) => void
   clearSlideZoom: (index: number) => void
@@ -36,7 +41,6 @@ export const useContentModeStore = create<ContentModeStore>((set) => ({
   },
   currentSlide: 0,
   slides: [],
-  slideTemplates: new Map(),
   slideZoomOverrides: new Map(),
 
   setContentMode: (mode) => set({ contentMode: mode, currentSlide: 0 }),
@@ -47,25 +51,44 @@ export const useContentModeStore = create<ContentModeStore>((set) => ({
     slides,
     currentSlide: Math.min(s.currentSlide, Math.max(0, slides.length - 1)),
   })),
-  setSlideTemplate: (index, template) => set((s) => {
-    const newTemplates = new Map(s.slideTemplates)
-    newTemplates.set(index, template)
-    const newSlides = [...s.slides]
-    if (newSlides[index]) {
-      newSlides[index] = { ...newSlides[index], template }
+  setSlideTemplate: (index, template) => {
+    const source = useDocumentStore.getState().source
+    const newSource = updateSlideMetadataInSource(source, index, { template })
+    if (newSource !== source) {
+      useDocumentStore.getState().setSource(newSource)
     }
-    return { slideTemplates: newTemplates, slides: newSlides }
-  }),
-  setSlideZoom: (index, zoom) => set((s) => {
-    const newZooms = new Map(s.slideZoomOverrides)
-    newZooms.set(index, zoom)
-    return { slideZoomOverrides: newZooms }
-  }),
-  clearSlideZoom: (index) => set((s) => {
-    const newZooms = new Map(s.slideZoomOverrides)
-    newZooms.delete(index)
-    return { slideZoomOverrides: newZooms }
-  }),
+  },
+  setSlideZoom: (index, zoom) => {
+    // In-memory for immediate UI response
+    set((s) => {
+      const newZooms = new Map(s.slideZoomOverrides)
+      newZooms.set(index, zoom)
+      return { slideZoomOverrides: newZooms }
+    })
+    // Persist in source metadata
+    const source = useDocumentStore.getState().source
+    const newSource = updateSlideMetadataInSource(source, index, {
+      zoom: String(Math.round(zoom * 100) / 100),
+    })
+    if (newSource !== source) {
+      useDocumentStore.getState().setSource(newSource)
+    }
+  },
+  clearSlideZoom: (index) => {
+    set((s) => {
+      const newZooms = new Map(s.slideZoomOverrides)
+      newZooms.delete(index)
+      return { slideZoomOverrides: newZooms }
+    })
+    // Remove zoom from source metadata
+    const source = useDocumentStore.getState().source
+    const newSource = updateSlideMetadataInSource(source, index, {
+      zoom: undefined,
+    })
+    if (newSource !== source) {
+      useDocumentStore.getState().setSource(newSource)
+    }
+  },
   nextSlide: () => set((s) => ({
     currentSlide: Math.min(s.currentSlide + 1, s.slides.length - 1),
   })),

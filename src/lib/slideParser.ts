@@ -1,9 +1,73 @@
 import type { SlideTemplate } from '@/types/contentMode'
 
 export interface SlideRaw {
+  /** Full segment source including metadata comment */
   source: string
+  /** Source without metadata comment (for rendering) */
+  content: string
+  /** Resolved template: metadata > auto-detect */
   template: SlideTemplate
+  /** Raw key-value pairs from <!-- slide: ... --> comment */
+  metadata: Record<string, string>
 }
+
+const SLIDE_META_RE = /^<!--\s*slide:\s*(.+?)\s*-->$/
+
+
+const VALID_TEMPLATES: Set<string> = new Set([
+  'cover', 'content', 'two-columns', 'image-text', 'full-media',
+])
+
+// ── Metadata parsing ──
+
+function parseMetadataLine(line: string): Record<string, string> | null {
+  const match = line.trim().match(SLIDE_META_RE)
+  if (!match) return null
+
+  const meta: Record<string, string> = {}
+  const pairs = match[1].split(/\s*,\s*/)
+  for (const pair of pairs) {
+    const eq = pair.indexOf('=')
+    if (eq > 0) {
+      const key = pair.slice(0, eq).trim()
+      const val = pair.slice(eq + 1).trim()
+      if (key) meta[key] = val
+    }
+  }
+  return meta
+}
+
+function serializeMetadata(meta: Record<string, string>): string {
+  const pairs = Object.entries(meta)
+    .filter(([, v]) => v !== undefined && v !== '')
+    .map(([k, v]) => `${k}=${v}`)
+  return `<!-- slide: ${pairs.join(', ')} -->`
+}
+
+/**
+ * Extract metadata comment from the beginning of a segment.
+ * Returns the metadata and the content without the comment.
+ */
+function extractMetadata(segSource: string): {
+  metadata: Record<string, string>
+  content: string
+} {
+  const lines = segSource.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.length === 0) continue
+
+    const meta = parseMetadataLine(trimmed)
+    if (meta) {
+      const contentLines = [...lines.slice(0, i), ...lines.slice(i + 1)]
+      return { metadata: meta, content: contentLines.join('\n') }
+    }
+    break // First non-blank line is not metadata
+  }
+  return { metadata: {}, content: segSource }
+}
+
+// ── Frontmatter detection ──
 
 /**
  * Detect YAML frontmatter at the start of source.
@@ -47,6 +111,8 @@ function detectFrontmatterEnd(lines: string[]): number {
 
   return 0 // never found closing ---
 }
+
+// ── Separator detection ──
 
 /**
  * Get all slide boundary lines (0-based): frontmatter end + `---` separators.
@@ -105,11 +171,16 @@ export function findSeparatorLines(source: string): number[] {
   return separators
 }
 
+// ── Slide parsing ──
+
 /**
  * Split source text into slides separated by `---`.
  * If YAML frontmatter exists, it becomes its own slide (the cover).
  * The closing `---` of the frontmatter acts as the first slide boundary.
  * Empty segments are discarded.
+ *
+ * Each slide's `<!-- slide: key=value -->` comment is parsed as metadata.
+ * The `content` field has the comment stripped for clean rendering.
  */
 export function parseSlides(source: string): SlideRaw[] {
   const lines = source.split('\n')
@@ -146,11 +217,114 @@ export function parseSlides(source: string): SlideRaw[] {
   return segments
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
-    .map((segSource, i) => ({
-      source: segSource,
-      template: detectTemplate(segSource, i === 0 && hasFrontmatter, fmTitle),
-    }))
+    .map((segSource, i) => {
+      const { metadata, content } = extractMetadata(segSource)
+      const metaTemplate = metadata.template
+      const resolvedTemplate = (metaTemplate && VALID_TEMPLATES.has(metaTemplate))
+        ? metaTemplate as SlideTemplate
+        : detectTemplate(content, i === 0 && hasFrontmatter, fmTitle)
+
+      return {
+        source: segSource,
+        content,
+        template: resolvedTemplate,
+        metadata,
+      }
+    })
 }
+
+// ── Source update ──
+
+/**
+ * Update metadata for a specific slide in the source text.
+ * Returns the new source with the `<!-- slide: ... -->` comment inserted or updated.
+ *
+ * Pass `undefined` as a value to remove that key.
+ * If all keys are removed, the comment is deleted entirely.
+ */
+export function updateSlideMetadataInSource(
+  source: string,
+  slideIndex: number,
+  updates: Record<string, string | undefined>,
+): string {
+  const lines = source.split('\n')
+  const fmEnd = detectFrontmatterEnd(lines)
+  const separators = findSeparatorLines(source)
+
+  // Build segment line ranges: [start, end)
+  const segRanges: [number, number][] = []
+  let start = 0
+
+  if (fmEnd > 0) {
+    segRanges.push([0, fmEnd])
+    start = fmEnd
+  }
+
+  for (const sep of separators) {
+    if (sep < start) continue
+    const segText = lines.slice(start, sep).join('\n').trim()
+    if (segText.length > 0) {
+      segRanges.push([start, sep])
+    }
+    start = sep + 1
+  }
+  // Last segment
+  const lastText = lines.slice(start).join('\n').trim()
+  if (lastText.length > 0) {
+    segRanges.push([start, lines.length])
+  }
+
+  if (slideIndex < 0 || slideIndex >= segRanges.length) return source
+
+  // Don't modify frontmatter slides — they have their own config
+  if (fmEnd > 0 && slideIndex === 0) return source
+
+  const [segStart, segEnd] = segRanges[slideIndex]
+
+  // Find existing metadata comment (first non-blank line)
+  let metaLineIdx = -1
+  let firstContentIdx = -1
+  for (let i = segStart; i < segEnd; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.length === 0) continue
+    if (firstContentIdx === -1) firstContentIdx = i
+    if (SLIDE_META_RE.test(trimmed)) metaLineIdx = i
+    break
+  }
+
+  // Parse existing metadata
+  let existingMeta: Record<string, string> = {}
+  if (metaLineIdx >= 0) {
+    existingMeta = parseMetadataLine(lines[metaLineIdx]) ?? {}
+  }
+
+  // Merge updates
+  const newMeta: Record<string, string> = { ...existingMeta }
+  for (const [k, v] of Object.entries(updates)) {
+    if (v === undefined) {
+      delete newMeta[k]
+    } else {
+      newMeta[k] = v
+    }
+  }
+
+  const hasValues = Object.keys(newMeta).length > 0
+
+  if (metaLineIdx >= 0) {
+    if (hasValues) {
+      lines[metaLineIdx] = serializeMetadata(newMeta)
+    } else {
+      lines.splice(metaLineIdx, 1)
+    }
+  } else if (hasValues) {
+    const insertAt = firstContentIdx >= 0 ? firstContentIdx : segStart
+    lines.splice(insertAt, 0, serializeMetadata(newMeta))
+  }
+
+  return lines.join('\n')
+}
+
+// ── Template auto-detection ──
 
 /** Auto-detect slide template based on content */
 function detectTemplate(
