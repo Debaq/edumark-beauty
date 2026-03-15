@@ -98,5 +98,4 @@ export const FONT_OPTIONS = [
   { value: 'Inter, system-ui, sans-serif', label: 'Sans-Serif (Inter)' },
   { value: 'Merriweather, Georgia, serif', label: 'Serif (Merriweather)' },
   { value: '"JetBrains Mono", monospace', label: 'Monoespaciada' },
-  { value: 'Inter, system-ui, sans-serif', label: 'Mixta (Sans + Serif)' },
 ] as const

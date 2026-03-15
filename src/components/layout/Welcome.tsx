@@ -4,86 +4,12 @@ import { clsx } from 'clsx'
 import { useDocumentStore } from '@/store/document'
 import { decode } from 'edumark-js'
 
-// Ejemplo breve de contenido edumark para la demo
-const DEMO_EDM = `---
-title: "Introduccion a la Celula"
-subtitle: "Biologia General — Capitulo 1"
-author: "Dra. Maria Lopez"
-institution: "Universidad Nacional"
----
+const EXAMPLES_BASE_URL = 'https://raw.githubusercontent.com/Debaq/edumark/main/ejemplos/'
 
-# La Celula: Unidad Basica de la Vida
-
-La **celula** es la unidad estructural y funcional mas pequena de los seres vivos.
-
-:::objective
-Comprender los conceptos fundamentales de la biologia celular y distinguir entre los diferentes tipos de celulas.
-:::
-
-## Tipos de Celulas
-
-Existen dos grandes grupos de celulas segun su organizacion interna:
-
-:::definition
-- Celula procariota: Celula sin nucleo definido, con material genetico disperso en el citoplasma.
-- Celula eucariota: Celula con nucleo delimitado por membrana nuclear que contiene el ADN.
-- Organelo: Estructura especializada dentro de la celula con funciones especificas.
-:::
-
-:::key-concept
-La principal diferencia entre procariotas y eucariotas es la presencia de un **nucleo** delimitado por membrana. Los eucariotas tambien poseen organelos membranosos como mitocondrias y reticulo endoplasmatico.
-:::
-
-## Organelos Principales
-
-| Organelo | Funcion | Tipo de celula |
-|----------|---------|----------------|
-| Nucleo | Almacena el ADN | Eucariota |
-| Mitocondria | Produce energia (ATP) | Eucariota |
-| Ribosoma | Sintetiza proteinas | Ambas |
-| Cloroplasto | Fotosintesis | Vegetal |
-| Reticulo endoplasmatico | Transporte de moleculas | Eucariota |
-
-:::note
-Los **ribosomas** se encuentran tanto en celulas procariotas como eucariotas, aunque difieren en su tamano (70S vs 80S).
-:::
-
-:::example{title="Celulas especializadas"}
-Un buen ejemplo de especializacion celular son las **neuronas**, que poseen axones largos para transmitir impulsos electricos, y los **eritrocitos**, que carecen de nucleo para maximizar el espacio para hemoglobina.
-:::
-
-:::warning
-No confundir la **membrana celular** (presente en todas las celulas) con la **pared celular** (presente solo en plantas, hongos y bacterias).
-:::
-
-## Teoria Celular
-
-:::history{year="1665"}
-Robert Hooke observo por primera vez las celulas al examinar laminas de corcho bajo el microscopio. Llamo a estas estructuras "celulas" por su parecido con las celdas de un monasterio.
-:::
-
-Los tres principios fundamentales de la teoria celular:
-
-1. Todos los seres vivos estan formados por celulas.
-2. La celula es la unidad basica de la vida.
-3. Toda celula proviene de otra celula preexistente.
-
-:::question{type="single"}
-Cual de los siguientes organelos es responsable de la produccion de energia en la celula eucariota?
-
-- [ ] Ribosoma
-- [x] Mitocondria
-- [ ] Lisosoma
-- [ ] Aparato de Golgi
-:::
-
-:::summary
-- La celula es la unidad basica de la vida
-- Existen dos tipos principales: procariotas y eucariotas
-- Los organelos cumplen funciones especializadas
-- La teoria celular establece los tres principios fundamentales de la biologia celular
-:::
-`
+const EXAMPLE_FILES = [
+  { file: 'capitulo_ejemplo.edm', label: 'Cinematica (Fisica)' },
+  { file: 'U1_01_neurona_celulas_gliales.edm', label: 'Neurona y celulas gliales' },
+] as const
 
 export function Welcome() {
   const setSource = useDocumentStore((s) => s.setSource)
@@ -139,9 +65,24 @@ export function Welcome() {
     [handleFile]
   )
 
-  const handleDemo = useCallback(() => {
-    loadContent(DEMO_EDM, 'demo_celula.edm')
-  }, [loadContent])
+  const [loadingExample, setLoadingExample] = useState<string | null>(null)
+
+  const handleLoadExample = useCallback(
+    async (file: string) => {
+      setLoadingExample(file)
+      try {
+        const res = await fetch(EXAMPLES_BASE_URL + file)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const text = await res.text()
+        loadContent(text, file)
+      } catch {
+        setHtml('<p style="color:#f87171;">Error al cargar el ejemplo desde GitHub.</p>')
+      } finally {
+        setLoadingExample(null)
+      }
+    },
+    [loadContent, setHtml]
+  )
 
   return (
     <div className="h-full flex items-center justify-center p-8"
@@ -204,16 +145,24 @@ export function Welcome() {
           <div className="flex-1 h-px bg-[var(--app-border)]" />
         </div>
 
-        {/* Boton demo */}
-        <button
-          onClick={handleDemo}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--app-bg1)]
-            border border-[var(--app-border)] text-sm font-medium text-[var(--app-fg1)]
-            hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
-        >
-          <Sparkles size={16} />
-          Cargar ejemplo de demostracion
-        </button>
+        {/* Botones de ejemplos */}
+        <div className="flex flex-col gap-2 w-full">
+          <p className="text-xs text-[var(--app-fg3)] text-center mb-1">Cargar ejemplo desde GitHub</p>
+          {EXAMPLE_FILES.map(({ file, label }) => (
+            <button
+              key={file}
+              onClick={() => handleLoadExample(file)}
+              disabled={loadingExample !== null}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--app-bg1)]
+                border border-[var(--app-border)] text-sm font-medium text-[var(--app-fg1)]
+                hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all
+                disabled:opacity-50 disabled:cursor-wait"
+            >
+              <Sparkles size={16} />
+              {loadingExample === file ? 'Cargando...' : label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
