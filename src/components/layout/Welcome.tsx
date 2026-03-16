@@ -6,6 +6,7 @@ import type { Chapter } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useUIStore } from '@/store/ui'
 import { decodeAsync } from 'edumark-js'
+import { isTauri, openFileDialog, openDirectoryDialog } from '@/lib/fileAdapter'
 import {
   isEdmIndex,
   isZipFile,
@@ -48,6 +49,7 @@ export function Welcome() {
   const setSource = useDocumentStore((s) => s.setSource)
   const setFilename = useDocumentStore((s) => s.setFilename)
   const setHtml = useDocumentStore((s) => s.setHtml)
+  const setFilePath = useDocumentStore((s) => s.setFilePath)
   const loadProject = useDocumentStore((s) => s.loadProject)
   const addToast = useUIStore((s) => s.addToast)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -340,6 +342,70 @@ export function Welcome() {
     }
   }, [urlInput, loadContent, loadEdmIndex, setSourceUrl, addToast])
 
+  /** Abrir archivo via diálogo nativo (Tauri) o fallback a <input> */
+  const handleOpenFile = useCallback(async () => {
+    if (!isTauri()) {
+      fileInputRef.current?.click()
+      return
+    }
+    const files = await openFileDialog({
+      extensions: ['edm', 'edmindex', 'zip', 'md', 'txt'],
+      title: 'Abrir documento',
+    })
+    if (!files) return
+    for (const f of files) {
+      if (isEdmIndex(f.name)) {
+        const required = parseAllIncludes(f.content)
+        if (required.length > 0) {
+          setPendingIndex({ indexSource: f.content, indexFilename: f.name, requiredFiles: required })
+        } else {
+          addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
+        }
+      } else {
+        await loadContent(f.content, f.name)
+        if (f.path) setFilePath(f.path)
+      }
+    }
+  }, [loadContent, setFilePath, addToast])
+
+  /** Abrir carpeta via diálogo nativo (Tauri) o fallback a <input webkitdirectory> */
+  const handleOpenFolder = useCallback(async () => {
+    if (!isTauri()) {
+      folderInputRef.current?.click()
+      return
+    }
+    const fileMap = await openDirectoryDialog()
+    if (!fileMap) return
+    await processFileMap(fileMap)
+  }, [processFileMap])
+
+  /** Abrir ZIP via diálogo nativo (Tauri) o fallback a <input> */
+  const handleOpenZip = useCallback(async () => {
+    if (!isTauri()) {
+      zipInputRef.current?.click()
+      return
+    }
+    const files = await openFileDialog({
+      extensions: ['zip'],
+      title: 'Abrir archivo ZIP',
+    })
+    if (!files || files.length === 0) return
+    // En Tauri leemos el ZIP como bytes
+    const { readFile } = await import('@tauri-apps/plugin-fs')
+    const bytes = await readFile(files[0].path!)
+    const JSZip = (await import('jszip')).default
+    const zip = await JSZip.loadAsync(bytes)
+    const fileMap = new Map<string, string>()
+    for (const [path, entry] of Object.entries(zip.files)) {
+      if (!entry.dir && (path.endsWith('.edm') || path.endsWith('.edmindex') || path.endsWith('.md') || path.endsWith('.txt'))) {
+        fileMap.set(path, await entry.async('text'))
+        const baseName = path.split('/').pop()
+        if (baseName) fileMap.set(baseName, await entry.async('text'))
+      }
+    }
+    await processFileMap(fileMap)
+  }, [processFileMap])
+
   const handleNewDocument = useCallback(() => {
     const template = '# New document\n\nStart writing here...\n'
     loadContent(template, 'new_document.edm')
@@ -385,7 +451,7 @@ export function Welcome() {
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleOpenFile}
           className={clsx(
             'w-full border-2 border-dashed rounded-2xl p-12 flex flex-col items-center gap-4 cursor-pointer transition-all',
             isDragOver
@@ -441,7 +507,7 @@ export function Welcome() {
             Nuevo documento
           </button>
           <button
-            onClick={() => folderInputRef.current?.click()}
+            onClick={handleOpenFolder}
             title="Abrir carpeta con .edmindex"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
@@ -451,7 +517,7 @@ export function Welcome() {
             <FolderOpen size={18} />
           </button>
           <button
-            onClick={() => zipInputRef.current?.click()}
+            onClick={handleOpenZip}
             title="Abrir archivo .zip"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
               bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium

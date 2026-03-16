@@ -4,8 +4,8 @@
   "identifier": "com.edumark.beauty",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5178",
+    "beforeDevCommand": "VITE_PORT=5178 npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

@@ -31,6 +31,8 @@ interface DocumentStore {
   indexSource: string
   /** URL remota del .edm (si se cargó desde URL) */
   sourceUrl: string
+  /** Ruta local del archivo (Tauri: para guardar sin diálogo) */
+  filePath: string
   /** Source fusionado (todos los capítulos, para modo libro) */
   mergedSource: string
   /** HTML fusionado decodificado */
@@ -40,6 +42,7 @@ interface DocumentStore {
   setFilename: (name: string) => void
   setHtml: (html: string) => void
   setSourceUrl: (url: string) => void
+  setFilePath: (path: string) => void
 
   /** Carga un proyecto completo con capítulos */
   loadProject: (data: {
@@ -82,6 +85,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   filename: '',
   html: '',
   sourceUrl: '',
+  filePath: '',
   isProject: false,
   chapters: [],
   activeChapterIndex: 0,
@@ -93,6 +97,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   setFilename: (name) => set({ filename: name }),
   setHtml: (html) => set({ html }),
   setSourceUrl: (url) => set({ sourceUrl: url }),
+  setFilePath: (path) => set({ filePath: path }),
 
   loadProject: ({ filename, indexSource, chapters, mergedSource, mergedHtml }) => {
     const first = chapters[0]
@@ -205,6 +210,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       filename: '',
       html: '',
       sourceUrl: '',
+      filePath: '',
       isProject: false,
       chapters: [],
       activeChapterIndex: 0,

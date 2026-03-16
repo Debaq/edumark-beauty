@@ -34,6 +34,17 @@ export async function saveTextFile(content: string, filename: string): Promise<v
   return saveFile(blob, filename)
 }
 
+/**
+ * Quick-save text to a known path (Tauri only, no dialog).
+ * Returns true if saved, false if not applicable (web or no path).
+ */
+export async function quickSave(content: string, filePath: string): Promise<boolean> {
+  if (!isTauri() || !filePath) return false
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+  await writeTextFile(filePath, content)
+  return true
+}
+
 /** Result from opening a file */
 export interface OpenedFile {
   name: string

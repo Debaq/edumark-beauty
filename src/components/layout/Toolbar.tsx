@@ -4,7 +4,7 @@ import {
   Download, Save, Settings, RotateCcw, HelpCircle,
   Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
-import { saveFile } from '@/lib/fileAdapter'
+import { saveFile, quickSave } from '@/lib/fileAdapter'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
@@ -45,12 +45,17 @@ export function Toolbar() {
   const [chapterDropdownOpen, setChapterDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Descargar .edm o .edmindex (como ZIP con capítulos)
+  // Guardar .edm o .edmindex (como ZIP con capítulos)
   const handleDownload = useCallback(async () => {
     const state = useDocumentStore.getState()
 
     if (!state.isProject) {
-      // .edm simple → descargar como archivo de texto
+      // Tauri: guardar directo si ya hay ruta conocida
+      if (await quickSave(state.source, state.filePath)) {
+        addToast('Guardado', 'success')
+        return
+      }
+      // Web o primera vez: diálogo / descarga
       const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
       await saveFile(blob, state.filename || 'documento.edm')
       addToast('Archivo .edm descargado', 'success')
