@@ -7,6 +7,17 @@ export function isTauri(): boolean {
   return !!import.meta.env.TAURI_ENV_PLATFORM || '__TAURI_INTERNALS__' in window
 }
 
+/** Result from Rust commands */
+interface FileMapResult {
+  files: Record<string, string>
+  errors: string[]
+}
+
+/** Convert Rust FileMapResult to JS Map */
+function resultToMap(result: FileMapResult): Map<string, string> {
+  return new Map(Object.entries(result.files))
+}
+
 /**
  * Save a Blob to disk.
  * - Tauri: opens a native "Save As" dialog, writes bytes via plugin-fs.
@@ -91,97 +102,57 @@ export async function openFileDialog(options?: {
 
 /**
  * Resolve an .edmindex by reading all referenced files from the same directory.
- * Tauri only — uses the filesystem path of the .edmindex to find siblings.
- * Returns a fileMap with all resolved content, or null if not in Tauri.
+ * Tauri: uses Rust command (parallel, recursive) for speed.
+ * Web: returns null.
  */
 export async function resolveEdmIndexFromDisk(
   indexPath: string,
-  includes: string[],
+  _includes: string[],
 ): Promise<Map<string, string> | null> {
   if (!isTauri()) return null
 
-  const { readTextFile } = await import('@tauri-apps/plugin-fs')
-  const dir = indexPath.replace(/[/\\][^/\\]+$/, '')
-  const fileMap = new Map<string, string>()
-  const fetched = new Set<string>()
-
-  async function resolve(paths: string[]) {
-    for (const relPath of paths) {
-      const baseName = relPath.split('/').pop() ?? relPath
-      if (fetched.has(relPath) || fetched.has(baseName)) continue
-      fetched.add(relPath)
-      fetched.add(baseName)
-
-      const fullPath = `${dir}/${relPath}`
-      try {
-        const content = await readTextFile(fullPath)
-        fileMap.set(relPath, content)
-        fileMap.set(baseName, content)
-
-        // Check for nested includes
-        const nested = content.match(/@include\(([^)]+)\)/g)
-        const includeBlock = content.match(/^:::include\s+file="([^"]+)"/gm)
-        const inlineInclude = content.match(/^::include\s+file="([^"]+)"/gm)
-        const nestedPaths: string[] = []
-        nested?.forEach(m => {
-          const p = m.match(/@include\(([^)]+)\)/)?.[1]
-          if (p) nestedPaths.push(p)
-        })
-        includeBlock?.forEach(m => {
-          const p = m.match(/file="([^"]+)"/)?.[1]
-          if (p) nestedPaths.push(p)
-        })
-        inlineInclude?.forEach(m => {
-          const p = m.match(/file="([^"]+)"/)?.[1]
-          if (p) nestedPaths.push(p)
-        })
-        if (nestedPaths.length > 0) await resolve(nestedPaths)
-      } catch {
-        // File not found — skip
-      }
-    }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const result = await invoke<FileMapResult>('resolve_edmindex', { indexPath })
+    return resultToMap(result)
+  } catch {
+    return null
   }
-
-  await resolve(includes)
-  return fileMap
 }
 
 /**
- * Open a directory picker and read all .edm/.edmindex files recursively.
- * - Tauri: native directory dialog + fs.readDir/readTextFile.
- * - Web: returns null (caller falls back to <input webkitdirectory>).
+ * Open a directory picker and read all text files recursively.
+ * Tauri: uses Rust command (parallel walkdir) for speed.
+ * Web: returns null (caller falls back to <input webkitdirectory>).
  */
 export async function openDirectoryDialog(): Promise<Map<string, string> | null> {
   if (!isTauri()) return null
 
   const { open } = await import('@tauri-apps/plugin-dialog')
-  const { readDir, readTextFile } = await import('@tauri-apps/plugin-fs')
-
   const dir = await open({ directory: true, title: 'Abrir carpeta de proyecto' })
   if (!dir) return null
 
-  const fileMap = new Map<string, string>()
-
-  async function walk(basePath: string, prefix: string) {
-    const entries = await readDir(basePath)
-    for (const entry of entries) {
-      const fullPath = `${basePath}/${entry.name}`
-      const relPath = prefix ? `${prefix}/${entry.name}` : entry.name
-      if (entry.isDirectory) {
-        await walk(fullPath, relPath)
-      } else if (
-        entry.name.endsWith('.edm') ||
-        entry.name.endsWith('.edmindex') ||
-        entry.name.endsWith('.md') ||
-        entry.name.endsWith('.txt')
-      ) {
-        const content = await readTextFile(fullPath)
-        fileMap.set(relPath, content)
-        fileMap.set(entry.name, content)
-      }
-    }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const result = await invoke<FileMapResult>('read_directory_files', { dirPath: dir })
+    return resultToMap(result)
+  } catch {
+    return null
   }
+}
 
-  await walk(dir, '')
-  return fileMap
+/**
+ * Read a ZIP file using Rust (parallel decompression).
+ * Tauri only. Returns null in web.
+ */
+export async function readZipFromDisk(zipPath: string): Promise<Map<string, string> | null> {
+  if (!isTauri()) return null
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const result = await invoke<FileMapResult>('read_zip_files', { zipPath })
+    return resultToMap(result)
+  } catch {
+    return null
+  }
 }

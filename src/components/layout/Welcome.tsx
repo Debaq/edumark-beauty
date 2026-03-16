@@ -6,7 +6,7 @@ import type { Chapter } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useUIStore } from '@/store/ui'
 import { decodeAsync } from 'edumark-js'
-import { isTauri, openFileDialog, openDirectoryDialog, resolveEdmIndexFromDisk } from '@/lib/fileAdapter'
+import { isTauri, openFileDialog, openDirectoryDialog, resolveEdmIndexFromDisk, readZipFromDisk } from '@/lib/fileAdapter'
 import {
   isEdmIndex,
   isZipFile,
@@ -41,8 +41,10 @@ interface PendingIndex {
   indexSource: string
   indexFilename: string
   requiredFiles: string[]
-  /** Archivos ya cargados de pasadas anteriores del modal (resolución recursiva) */
+  /** Archivos ya cargados de pasadas anteriores o pre-resueltos desde disco */
   initialFileMap?: Map<string, string>
+  /** Ruta del .edmindex en disco (Tauri) */
+  indexPath?: string
 }
 
 export function Welcome() {
@@ -221,14 +223,16 @@ export function Welcome() {
           indexFilename: pendingIndex.indexFilename,
           requiredFiles: [...new Set([...pendingIndex.requiredFiles, ...missing])],
           initialFileMap: mergedMap,
+          indexPath: pendingIndex.indexPath,
         })
         return
       }
 
       setPendingIndex(null)
       await loadEdmIndex(pendingIndex.indexSource, pendingIndex.indexFilename, mergedMap)
+      if (pendingIndex.indexPath) setFilePath(pendingIndex.indexPath)
     },
-    [pendingIndex, loadEdmIndex]
+    [pendingIndex, loadEdmIndex, setFilePath]
   )
 
   /** Maneja el drop de carpetas o archivos */
@@ -360,23 +364,25 @@ export function Welcome() {
           addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
           continue
         }
-        // Tauri: resolver includes automáticamente desde el filesystem
+        // Tauri: pre-resolver desde disco y mostrar modal con archivos ya cargados
+        let preloaded: Map<string, string> | undefined
         if (f.path) {
           const fileMap = await resolveEdmIndexFromDisk(f.path, required)
-          if (fileMap && fileMap.size > 0) {
-            await loadEdmIndex(f.content, f.name, fileMap)
-            setFilePath(f.path)
-            continue
-          }
+          if (fileMap && fileMap.size > 0) preloaded = fileMap
         }
-        // Web o fallback: abrir modal para que suba los archivos
-        setPendingIndex({ indexSource: f.content, indexFilename: f.name, requiredFiles: required })
+        setPendingIndex({
+          indexSource: f.content,
+          indexFilename: f.name,
+          requiredFiles: required,
+          initialFileMap: preloaded,
+          indexPath: f.path,
+        })
       } else {
         await loadContent(f.content, f.name)
         if (f.path) setFilePath(f.path)
       }
     }
-  }, [loadContent, loadEdmIndex, setFilePath, addToast])
+  }, [loadContent, setFilePath, addToast])
 
   /** Abrir carpeta via diálogo nativo (Tauri) o fallback a <input webkitdirectory> */
   const handleOpenFolder = useCallback(async () => {
@@ -389,7 +395,7 @@ export function Welcome() {
     await processFileMap(fileMap)
   }, [processFileMap])
 
-  /** Abrir ZIP via diálogo nativo (Tauri) o fallback a <input> */
+  /** Abrir ZIP via diálogo nativo (Tauri con Rust) o fallback a <input> */
   const handleOpenZip = useCallback(async () => {
     if (!isTauri()) {
       zipInputRef.current?.click()
@@ -399,20 +405,9 @@ export function Welcome() {
       extensions: ['zip'],
       title: 'Abrir archivo ZIP',
     })
-    if (!files || files.length === 0) return
-    // En Tauri leemos el ZIP como bytes
-    const { readFile } = await import('@tauri-apps/plugin-fs')
-    const bytes = await readFile(files[0].path!)
-    const JSZip = (await import('jszip')).default
-    const zip = await JSZip.loadAsync(bytes)
-    const fileMap = new Map<string, string>()
-    for (const [path, entry] of Object.entries(zip.files)) {
-      if (!entry.dir && (path.endsWith('.edm') || path.endsWith('.edmindex') || path.endsWith('.md') || path.endsWith('.txt'))) {
-        fileMap.set(path, await entry.async('text'))
-        const baseName = path.split('/').pop()
-        if (baseName) fileMap.set(baseName, await entry.async('text'))
-      }
-    }
+    if (!files || files.length === 0 || !files[0].path) return
+    const fileMap = await readZipFromDisk(files[0].path)
+    if (!fileMap) return
     await processFileMap(fileMap)
   }, [processFileMap])
 
