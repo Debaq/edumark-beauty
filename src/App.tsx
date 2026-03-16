@@ -11,6 +11,8 @@ import { HelpModal } from '@/components/layout/HelpModal'
 import { SkillsModal } from '@/components/layout/SkillsModal'
 import { ToastContainer } from '@/components/ui/Toast'
 import { Preview } from '@/components/preview/Preview'
+import { TitleBar } from '@/components/layout/TitleBar'
+import { isTauri } from '@/lib/fileAdapter'
 import { decodeAsync } from 'edumark-js'
 import { isEdmIndex, fetchEdmIndexFromUrl, resolveEdmIndex, parseAllIncludes } from '@/lib/edmindex'
 import { extractTitle } from '@/store/document'
@@ -122,6 +124,8 @@ export default function App() {
       })
   }, [])
 
+  const showTitleBar = isTauri()
+
   // Embed mode: solo el preview, sin editor ni toolbar
   if (embedMode) {
     return (
@@ -135,6 +139,7 @@ export default function App() {
   if (!source) {
     return (
       <div className="h-full flex flex-col">
+        {showTitleBar && <TitleBar />}
         <Welcome />
         <HelpModal />
         <ToastContainer />
@@ -144,6 +149,7 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col">
+      {showTitleBar && <TitleBar />}
       <Toolbar />
       <div className="flex-1 flex overflow-hidden">
         <Panels />
