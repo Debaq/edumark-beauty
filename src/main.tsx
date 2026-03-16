@@ -6,7 +6,7 @@ import App from './App'
 import './styles/index.css'
 
 // Inject KaTeX into edumark-js so decode()/decodeAsync() render math directly
-setKatex(katex)
+setKatex(katex as Parameters<typeof setKatex>[0])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

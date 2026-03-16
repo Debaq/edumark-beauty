@@ -197,35 +197,39 @@ export function SvgEditorPanel() {
     setSvgContent(serializeSvg(svgEl))
   }, [svgContent, pushUndo])
 
-  // Move element
+  // Push undo once at the start of a drag/resize interaction
+  const handleInteractionStart = useCallback(() => {
+    pushUndo()
+  }, [pushUndo])
+
+  // Move element (called on each mousemove — no undo push)
   const handleMoveElement = useCallback((idx: number, dx: number, dy: number) => {
     const svgEl = parseSvg(svgContent)
     if (!svgEl) return
     const children = getSelectableChildren(svgEl)
     const el = children[idx]
     if (!el) return
-    // Don't push undo on every mouse move — only on mouse down (handled in canvas)
     moveElement(el, dx, dy)
     setSvgContent(serializeSvg(svgEl))
   }, [svgContent])
 
-  // We push undo only when drag starts
+  // Select element (no undo — undo is pushed on interaction start)
   const handleSelectElement = useCallback((idx: number | null) => {
-    if (idx !== selectedIdx && idx != null) {
-      // Push undo when starting to interact with a new element
-      pushUndo()
-    }
     setSelectedIdx(idx)
-  }, [selectedIdx, pushUndo])
+  }, [])
 
-  // Resize element
-  const handleResizeElement = useCallback((idx: number, attr: string, value: number) => {
-    mutateSvg((svgEl) => {
-      const children = getSelectableChildren(svgEl)
-      const el = children[idx]
-      if (el) el.setAttribute(attr, String(value))
-    })
-  }, [mutateSvg])
+  // Batch resize (called on each mousemove during resize — no undo push)
+  const handleResizeBatch = useCallback((idx: number, attrs: Record<string, string>) => {
+    const svgEl = parseSvg(svgContent)
+    if (!svgEl) return
+    const children = getSelectableChildren(svgEl)
+    const el = children[idx]
+    if (!el) return
+    for (const [attr, val] of Object.entries(attrs)) {
+      el.setAttribute(attr, val)
+    }
+    setSvgContent(serializeSvg(svgEl))
+  }, [svgContent])
 
   // Delete selected
   const handleDelete = useCallback(() => {
@@ -416,8 +420,9 @@ export function SvgEditorPanel() {
           viewTransform={viewTransform}
           onViewTransformChange={setViewTransform}
           onSelectElement={handleSelectElement}
+          onInteractionStart={handleInteractionStart}
           onMoveElement={handleMoveElement}
-          onResizeElement={handleResizeElement}
+          onResizeBatch={handleResizeBatch}
           onCreateShape={handleCreateShape}
         />
         <SvgPropertiesPanel

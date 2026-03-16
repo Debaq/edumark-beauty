@@ -12,6 +12,8 @@ import { markdownHighlight } from './markdown-highlight'
 import { commentFold } from './comment-fold'
 import { tableFormatter } from './table-formatter'
 import { svgEditWidget, svgEditWidgetTheme } from './svg-edit-widget'
+import { mermaidZoomWidget, mermaidZoomWidgetTheme } from './mermaid-zoom-widget'
+import { mermaidEditWidget, mermaidEditWidgetTheme } from './mermaid-edit-widget'
 import { imagePreviewWidget, imagePreviewWidgetTheme } from './image-preview-widget'
 import { imageToWebpBase64 } from '@/lib/imageToBase64'
 import { useDocumentStore } from '@/store/document'
@@ -139,6 +141,10 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
         tableFormatter,
         svgEditWidget,
         svgEditWidgetTheme,
+        mermaidZoomWidget,
+        mermaidZoomWidgetTheme,
+        mermaidEditWidget,
+        mermaidEditWidgetTheme,
         imagePreviewWidget,
         imagePreviewWidgetTheme,
         imageDropPaste,

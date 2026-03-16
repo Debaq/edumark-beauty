@@ -604,6 +604,7 @@
 /* ─── Diagramas ───────────────────────────────────── */
 .edm-preview .edm-diagram-render {
   text-align: center;
+  overflow: hidden;
 }
 
 .edm-preview .edm-diagram-render pre.mermaid {
@@ -614,12 +615,14 @@
 .edm-preview .edm-mermaid-rendered {
   text-align: center;
   background: transparent;
+  overflow: hidden;
 }
 
 .edm-preview .edm-diagram-render .edm-mermaid-rendered svg,
 .edm-preview .edm-mermaid-rendered svg {
-  max-width: 100%;
-  height: auto;
+  max-width: 100% !important;
+  width: 100%;
+  height: auto !important;
   font-family: var(--t-body-font) !important;
 }
 

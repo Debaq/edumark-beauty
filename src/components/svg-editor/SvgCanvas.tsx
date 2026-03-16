@@ -14,8 +14,9 @@ interface Props {
   viewTransform: ViewTransform
   onViewTransformChange: (vt: ViewTransform) => void
   onSelectElement: (idx: number | null) => void
+  onInteractionStart: () => void
   onMoveElement: (idx: number, dx: number, dy: number) => void
-  onResizeElement: (idx: number, attr: string, value: number) => void
+  onResizeBatch: (idx: number, attrs: Record<string, string>) => void
   onCreateShape: (tool: SvgTool, x: number, y: number, w: number, h: number) => void
 }
 
@@ -91,8 +92,9 @@ export function SvgCanvas({
   viewTransform: vt,
   onViewTransformChange,
   onSelectElement,
+  onInteractionStart,
   onMoveElement,
-  onResizeElement,
+  onResizeBatch,
   onCreateShape,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -100,8 +102,10 @@ export function SvgCanvas({
   const [isPanning, setIsPanning] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
   const dragStart = useRef<{ x: number; y: number; startVt?: ViewTransform } | null>(null)
   const createStart = useRef<{ x: number; y: number } | null>(null)
+  const resizeInfo = useRef<{ corner: string; initBBox: DOMRect; tag: string } | null>(null)
   const [createPreview, setCreatePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [selectionBox, setSelectionBox] = useState<DOMRect | null>(null)
 
@@ -188,6 +192,7 @@ export function SvgCanvas({
 
     if (clickedIdx != null) {
       onSelectElement(clickedIdx)
+      onInteractionStart()
       // Start dragging
       const svgPt = screenToSvg(e.clientX, e.clientY, svgEl, wrap, vt)
       dragStart.current = { x: svgPt.x, y: svgPt.y }
@@ -195,7 +200,24 @@ export function SvgCanvas({
     } else {
       onSelectElement(null)
     }
-  }, [activeTool, vt, getSvgEl, onSelectElement, onViewTransformChange])
+  }, [activeTool, vt, getSvgEl, onSelectElement, onInteractionStart])
+
+  // Compute new element attrs from resized bounding box
+  const computeResizeAttrs = useCallback((
+    tag: string, x: number, y: number, w: number, h: number,
+  ): Record<string, string> => {
+    const r = (n: number) => String(Math.round(n * 100) / 100)
+    switch (tag) {
+      case 'rect': case 'image': case 'foreignobject':
+        return { x: r(x), y: r(y), width: r(Math.max(1, w)), height: r(Math.max(1, h)) }
+      case 'ellipse':
+        return { cx: r(x + w / 2), cy: r(y + h / 2), rx: r(Math.max(1, w / 2)), ry: r(Math.max(1, h / 2)) }
+      case 'circle':
+        return { cx: r(x + w / 2), cy: r(y + h / 2), r: r(Math.max(1, Math.min(w, h) / 2)) }
+      default:
+        return {}
+    }
+  }, [])
 
   // Mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -210,6 +232,28 @@ export function SvgCanvas({
         y: dragStart.current.startVt.y + dy,
         scale: dragStart.current.startVt.scale,
       })
+      return
+    }
+
+    if (isResizing && selectedIdx != null && resizeInfo.current && wrap && svgEl) {
+      const pt = screenToSvg(e.clientX, e.clientY, svgEl, wrap, vt)
+      const { corner, initBBox, tag } = resizeInfo.current
+      let { x, y, width, height } = initBBox
+
+      // Adjust bounds based on corner being dragged
+      if (corner.includes('w')) { width += x - pt.x; x = pt.x }
+      if (corner.includes('n')) { height += y - pt.y; y = pt.y }
+      if (corner.includes('e')) { width = pt.x - x }
+      if (corner.includes('s')) { height = pt.y - y }
+
+      // Prevent negative dimensions
+      if (width < 1) { x += width - 1; width = 1 }
+      if (height < 1) { y += height - 1; height = 1 }
+
+      const attrs = computeResizeAttrs(tag, x, y, width, height)
+      if (Object.keys(attrs).length > 0) {
+        onResizeBatch(selectedIdx, attrs)
+      }
       return
     }
 
@@ -235,7 +279,7 @@ export function SvgCanvas({
         dragStart.current = { x: pt.x, y: pt.y }
       }
     }
-  }, [isPanning, isCreating, isDragging, selectedIdx, vt, getSvgEl, onViewTransformChange, onMoveElement])
+  }, [isPanning, isCreating, isDragging, isResizing, selectedIdx, vt, getSvgEl, onViewTransformChange, onMoveElement, onResizeBatch, computeResizeAttrs])
 
   // Mouse up
   const handleMouseUp = useCallback(() => {
@@ -250,21 +294,25 @@ export function SvgCanvas({
     }
     setIsPanning(false)
     setIsDragging(false)
+    setIsResizing(false)
     dragStart.current = null
+    resizeInfo.current = null
   }, [isCreating, createPreview, activeTool, onCreateShape])
 
   // Listen for global mouseup to end drag even if cursor leaves canvas
   useEffect(() => {
     const up = () => {
-      if (isPanning || isDragging) {
+      if (isPanning || isDragging || isResizing) {
         setIsPanning(false)
         setIsDragging(false)
+        setIsResizing(false)
         dragStart.current = null
+        resizeInfo.current = null
       }
     }
     window.addEventListener('mouseup', up)
     return () => window.removeEventListener('mouseup', up)
-  }, [isPanning, isDragging])
+  }, [isPanning, isDragging, isResizing])
 
   // Inject explicit width/height into SVG so it renders at a good size
   const preparedSvg = (() => {
@@ -336,20 +384,39 @@ export function SvgCanvas({
           />
           {/* Corner handles */}
           {['nw', 'ne', 'sw', 'se'].map((corner) => {
-            const cx = corner.includes('w') ? selectionBox.x - 2 : selectionBox.x + selectionBox.width + 2
-            const cy = corner.includes('n') ? selectionBox.y - 2 : selectionBox.y + selectionBox.height + 2
+            const hx = corner.includes('w') ? selectionBox.x - 2 : selectionBox.x + selectionBox.width + 2
+            const hy = corner.includes('n') ? selectionBox.y - 2 : selectionBox.y + selectionBox.height + 2
+            const cursor = corner === 'nw' || corner === 'se' ? 'nwse-resize'
+              : 'nesw-resize'
             return (
               <rect
                 key={corner}
                 className="edm-svg-handle"
-                x={cx - 4}
-                y={cy - 4}
+                x={hx - 4}
+                y={hy - 4}
                 rx={1}
                 ry={1}
+                style={{ cursor }}
                 onMouseDown={(e) => {
                   e.stopPropagation()
-                  // Simple resize: for now just modify width/height on drag
-                  // This can be expanded in the future
+                  e.preventDefault()
+                  if (selectedIdx == null) return
+                  const svgEl = getSvgEl()
+                  if (!svgEl) return
+                  const children = getSelectableChildren(svgEl)
+                  const el = children[selectedIdx]
+                  if (!el) return
+                  // Get element BBox in viewBox coords
+                  try {
+                    const bbox = (el as SVGGraphicsElement).getBBox()
+                    onInteractionStart()
+                    resizeInfo.current = {
+                      corner,
+                      initBBox: new DOMRect(bbox.x, bbox.y, bbox.width, bbox.height),
+                      tag: el.tagName.toLowerCase(),
+                    }
+                    setIsResizing(true)
+                  } catch { /* element doesn't support getBBox */ }
                 }}
               />
             )

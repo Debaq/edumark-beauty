@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   PanelLeftClose, PanelRightClose, Columns2,
-  Download, Settings, FileText, RotateCcw, HelpCircle,
+  Download, Save, Settings, FileText, RotateCcw, HelpCircle,
   Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
+import { saveAs } from 'file-saver'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
@@ -39,8 +40,44 @@ export function Toolbar() {
   const contentMode = useContentModeStore((s) => s.contentMode)
   const setContentMode = useContentModeStore((s) => s.setContentMode)
 
+  const addToast = useUIStore((s) => s.addToast)
+
   const [chapterDropdownOpen, setChapterDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Descargar .edm o .edmindex (como ZIP con capítulos)
+  const handleDownload = useCallback(async () => {
+    const state = useDocumentStore.getState()
+
+    if (!state.isProject) {
+      // .edm simple → descargar como archivo de texto
+      const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
+      saveAs(blob, state.filename || 'documento.edm')
+      addToast('Archivo .edm descargado', 'success')
+      return
+    }
+
+    // Proyecto .edmindex → sincronizar capítulo actual y empaquetar ZIP
+    state.syncChapterFromEditor()
+    const updatedState = useDocumentStore.getState()
+
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+
+    // Agregar el .edmindex
+    const indexName = updatedState.filename || 'proyecto.edmindex'
+    zip.file(indexName, updatedState.indexSource)
+
+    // Agregar cada capítulo con su ruta original
+    for (const ch of updatedState.chapters) {
+      zip.file(ch.path, ch.source)
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const zipName = indexName.replace(/\.edmindex$/, '') + '.zip'
+    saveAs(blob, zipName)
+    addToast('Proyecto descargado como ZIP', 'success')
+  }, [addToast])
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -176,6 +213,14 @@ export function Toolbar() {
         >
           <Sparkles size={14} />
           <span className="hidden sm:inline">Skills</span>
+        </button>
+        <button
+          onClick={handleDownload}
+          title={isProject ? 'Descargar proyecto como ZIP' : 'Descargar .edm'}
+          className="p-2 rounded-lg text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]
+            hover:text-[var(--app-accent)] transition-colors"
+        >
+          <Save size={16} />
         </button>
         <button
           onClick={() => setExportModalOpen(true)}

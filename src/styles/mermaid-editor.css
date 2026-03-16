@@ -1,0 +1,83 @@
+/* ========================================
+   Mermaid Editor
+   ======================================== */
+
+.edm-mermaid-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--app-bg, #171717);
+  color: var(--app-fg, #e5e5e5);
+}
+
+/* ── Main area ── */
+
+.edm-mermaid-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Code panel (left) ── */
+
+.edm-mermaid-code-panel {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  border-right: 1px solid var(--app-border, #333);
+}
+
+.edm-mermaid-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--app-bg, #171717);
+  color: var(--app-fg, #e5e5e5);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 16px;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+}
+
+.edm-mermaid-textarea::placeholder {
+  color: var(--app-fg3, #666);
+}
+
+/* ── Preview panel (right) ── */
+
+.edm-mermaid-preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--app-bg1, #1e1e1e);
+}
+
+.edm-mermaid-error {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.edm-mermaid-preview-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.edm-mermaid-preview-content svg {
+  max-width: 100%;
+  height: auto;
+}

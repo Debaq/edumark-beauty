@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { X, FileCode, Copy, FileImage, FileText, Presentation, BookOpen } from 'lucide-react'
 import { useUIStore } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
@@ -9,6 +9,7 @@ import { exportFullHtml } from '@/lib/exportHtml'
 import { copyHtmlSnippet } from '@/lib/exportSnippet'
 import { exportPdf } from '@/lib/exportPdf'
 import { exportDocx } from '@/lib/exportDocx'
+import { Toggle } from '@/components/ui/Toggle'
 import { PageConfigSection } from './PageConfigSection'
 import { saveAs } from 'file-saver'
 
@@ -33,6 +34,7 @@ export function ExportModal() {
   const slideConfig = useContentModeStore((s) => s.slideConfig)
   const pageConfig = useContentModeStore((s) => s.pageConfig)
   const bookLayout = useBookLayoutStore((s) => s.layoutConfig)
+  const [inlineStyles, setInlineStyles] = useState(true)
 
   // --- HTML mode handlers ---
   const handleHtml = useCallback(() => {
@@ -44,10 +46,10 @@ export function ExportModal() {
   }, [html, themeConfig, filename, addToast, setOpen])
 
   const handleSnippet = useCallback(async () => {
-    await copyHtmlSnippet(html)
+    await copyHtmlSnippet(html, themeConfig, inlineStyles)
     addToast('HTML copiado al portapapeles', 'success')
     setOpen(false)
-  }, [html, addToast, setOpen])
+  }, [html, themeConfig, inlineStyles, addToast, setOpen])
 
   const handlePdf = useCallback(async () => {
     try {
@@ -212,7 +214,7 @@ export function ExportModal() {
           {
             icon: Copy,
             title: 'Copiar HTML',
-            desc: 'Copia solo el contenido HTML al portapapeles',
+            desc: 'HTML con estilos para insertar en Moodle u otro LMS',
             color: 'text-blue-400',
             action: handleSnippet,
           },
@@ -266,6 +268,17 @@ export function ExportModal() {
 
         {/* Page/Slide config section */}
         <PageConfigSection />
+
+        {/* Toggle inline styles (solo modo html) */}
+        {contentMode === 'html' && (
+          <div className="mb-4 px-1">
+            <Toggle
+              label="Estilos inline (compatibilidad Moodle)"
+              value={inlineStyles}
+              onChange={setInlineStyles}
+            />
+          </div>
+        )}
 
         {/* Cards de exportación */}
         <div className="flex flex-col gap-3">

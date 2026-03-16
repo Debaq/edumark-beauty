@@ -16,6 +16,11 @@ interface UIStore {
   svgEditorDiagramId: string | null
   svgEditorOriginalSvg: string | null
 
+  /** Mermaid editor state */
+  mermaidEditorActive: boolean
+  mermaidEditorDiagramId: string | null
+  mermaidEditorOriginalCode: string | null
+
   setViewMode: (mode: ViewMode) => void
   setExportModalOpen: (open: boolean) => void
   setConfigPanelOpen: (open: boolean) => void
@@ -26,6 +31,8 @@ interface UIStore {
   removeToast: (id: string) => void
   openSvgEditor: (diagramId: string, originalSvg: string) => void
   closeSvgEditor: () => void
+  openMermaidEditor: (diagramId: string, originalCode: string) => void
+  closeMermaidEditor: () => void
 }
 
 export interface Toast {
@@ -47,6 +54,9 @@ export const useUIStore = create<UIStore>((set) => ({
   svgEditorActive: false,
   svgEditorDiagramId: null,
   svgEditorOriginalSvg: null,
+  mermaidEditorActive: false,
+  mermaidEditorDiagramId: null,
+  mermaidEditorOriginalCode: null,
 
   setViewMode: (mode) => set({ viewMode: mode }),
   setExportModalOpen: (open) => set({ exportModalOpen: open }),
@@ -78,4 +88,10 @@ export const useUIStore = create<UIStore>((set) => ({
 
   closeSvgEditor: () =>
     set({ svgEditorActive: false, svgEditorDiagramId: null, svgEditorOriginalSvg: null }),
+
+  openMermaidEditor: (diagramId, originalCode) =>
+    set({ mermaidEditorActive: true, mermaidEditorDiagramId: diagramId, mermaidEditorOriginalCode: originalCode }),
+
+  closeMermaidEditor: () =>
+    set({ mermaidEditorActive: false, mermaidEditorDiagramId: null, mermaidEditorOriginalCode: null }),
 }))

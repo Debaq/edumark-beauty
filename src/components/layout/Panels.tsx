@@ -7,6 +7,7 @@ import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PreviewRouter } from '@/components/preview/PreviewRouter'
 import { SvgEditorPanel } from '@/components/svg-editor/SvgEditorPanel'
+import { MermaidEditorPanel } from '@/components/mermaid-editor/MermaidEditorPanel'
 import { ProjectChapterBar } from '@/components/layout/ProjectChapterBar'
 import type { PreviewHandle } from '@/components/preview/Preview'
 import { findSlideBoundaries } from '@/lib/slideParser'
@@ -62,6 +63,7 @@ export function Panels() {
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync)
   const contentMode = useContentModeStore((s) => s.contentMode)
   const svgEditorActive = useUIStore((s) => s.svgEditorActive)
+  const mermaidEditorActive = useUIStore((s) => s.mermaidEditorActive)
   const currentSlide = useContentModeStore((s) => s.currentSlide)
   const setCurrentSlide = useContentModeStore((s) => s.setCurrentSlide)
   const slides = useContentModeStore((s) => s.slides)
@@ -75,14 +77,16 @@ export function Panels() {
   const previewRef = useRef<PreviewHandle>(null)
   const isSyncing = useRef(false)
 
-  // Adjust split ratio when content mode or SVG editor changes
+  const diagramEditorActive = svgEditorActive || mermaidEditorActive
+
+  // Adjust split ratio when content mode or diagram editor changes
   useEffect(() => {
-    if (svgEditorActive) {
+    if (diagramEditorActive) {
       setSplitPercent(33)
     } else {
       setSplitPercent(contentMode === 'presentation' ? 33 : 50)
     }
-  }, [contentMode, svgEditorActive])
+  }, [contentMode, diagramEditorActive])
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true
@@ -339,7 +343,7 @@ export function Panels() {
       <div className="flex-1 overflow-hidden flex flex-col">
         <ProjectChapterBar />
         <div className="flex-1 overflow-hidden">
-          {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter />}
+          {svgEditorActive ? <SvgEditorPanel /> : mermaidEditorActive ? <MermaidEditorPanel /> : <PreviewRouter />}
         </div>
       </div>
     )
@@ -374,7 +378,7 @@ export function Panels() {
       </div>
 
       <div className="overflow-hidden" style={{ width: `${100 - splitPercent}%` }}>
-        {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter ref={previewRef} />}
+        {svgEditorActive ? <SvgEditorPanel /> : mermaidEditorActive ? <MermaidEditorPanel /> : <PreviewRouter ref={previewRef} />}
       </div>
       </div>
     </div>

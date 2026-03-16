@@ -4,6 +4,8 @@ import { useThemeStore } from '@/store/theme'
 import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
 import { useMermaid } from '@/hooks/useMermaid'
 import { useIncludeLinks } from '@/hooks/useIncludeLinks'
+import { useSvgEditButtons, svgEditButtonCss } from '@/hooks/useSvgEditButtons'
+import { useMermaidEditButtons, mermaidEditButtonCss } from '@/hooks/useMermaidEditButtons'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
@@ -34,6 +36,10 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
   // Navegar a capítulos al hacer clic en :::include links
   useIncludeLinks(containerRef, html)
 
+  // Botones de edición en diagramas SVG y Mermaid
+  useSvgEditButtons(containerRef, html)
+  useMermaidEditButtons(containerRef, html)
+
   if (!html) {
     return (
       <div className="h-full flex items-center justify-center text-[var(--app-fg3)]">
@@ -44,7 +50,7 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
 
   return (
     <div ref={scrollerRef} className="h-full overflow-auto" style={{ background: themeConfig.bg }}>
-      <style>{previewBaseCss}{interactivityCss}</style>
+      <style>{previewBaseCss}{interactivityCss}{svgEditButtonCss}{mermaidEditButtonCss}</style>
       <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"

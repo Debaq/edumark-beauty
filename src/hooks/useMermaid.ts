@@ -96,16 +96,39 @@ export function useMermaid(
     // Renderizar cada bloque individualmente para control total
     const render = async () => {
       for (const pre of pres) {
-        const code = pre.textContent?.trim()
-        if (!code) continue
+        const raw = pre.textContent?.trim()
+        if (!raw) continue
 
+        // Convertir \n literal a <br/> para que Mermaid renderice saltos de línea
+        const code = raw.replace(/\\n/g, '<br/>')
         const id = `edm-mermaid-${++mermaidIdCounter}`
-        try {
+        // Leer zoom ANTES de reemplazar el pre
+          const diagramRender = pre.closest('.edm-diagram-render')
+          const zoomVal = diagramRender?.getAttribute('data-edm-zoom')
+          const zoom = zoomVal ? parseFloat(zoomVal) : 0
+
+          try {
           const { svg } = await mermaid.render(id, code)
           const wrapper = document.createElement('div')
           wrapper.className = 'edm-mermaid-rendered'
-          wrapper.setAttribute('data-mermaid-src', code)
+          wrapper.setAttribute('data-mermaid-src', raw)
           wrapper.innerHTML = svg
+          // Quitar width/height fijos del SVG para que CSS controle el tamaño
+          const svgEl = wrapper.querySelector('svg')
+          if (svgEl) {
+            svgEl.removeAttribute('width')
+            svgEl.style.height = 'auto'
+            if (zoom > 0 && zoom !== 1) {
+              svgEl.style.setProperty('width', `${zoom * 100}%`, 'important')
+              svgEl.style.setProperty('max-width', `${zoom * 100}%`, 'important')
+              if (zoom > 1 && diagramRender) {
+                ;(diagramRender as HTMLElement).style.overflow = 'auto'
+              }
+            } else {
+              svgEl.style.maxWidth = '100%'
+              svgEl.style.width = '100%'
+            }
+          }
           pre.replaceWith(wrapper)
         } catch {
           // En caso de error de sintaxis, dejar el <pre> como está
