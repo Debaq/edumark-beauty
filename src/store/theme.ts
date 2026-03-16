@@ -862,7 +862,6 @@ function syncThemeToSource() {
   const next = updateThemeInSource(source, modePresets, modeConfigs)
   if (next !== source) {
     useDocumentStore.getState().setSource(next)
-    useDocumentStore.getState().markDirty()
   }
 }
 
@@ -925,6 +924,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
       }
     })
     syncThemeToSource()
+    useDocumentStore.getState().markDirty()
   },
 
   applyPreset: (key) => {
@@ -937,6 +937,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
       modePresets: { ...state.modePresets, [mode]: key },
     }))
     syncThemeToSource()
+    useDocumentStore.getState().markDirty()
   },
 
   importTheme: (json) => {
@@ -949,6 +950,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
       modePresets: { ...state.modePresets, [mode]: null },
     }))
     syncThemeToSource()
+    useDocumentStore.getState().markDirty()
   },
 
   exportTheme: () => ({ ...get().config }),

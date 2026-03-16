@@ -47,6 +47,7 @@ async function loadSingleFromUrl(url: string, text: string, themeOverride?: stri
   } catch {
     useDocumentStore.getState().setHtml('<p style="color:#f87171;">Error al parsear el documento.</p>')
   }
+  useDocumentStore.setState({ dirty: false })
 }
 
 /** Loads a remote .edmindex project into the store */
@@ -80,6 +81,7 @@ async function loadEdmIndexFromUrl(url: string, themeOverride?: string | null) {
   useDocumentStore.getState().loadProject({ filename: indexName, indexSource, chapters, mergedSource: resolved, mergedHtml })
   useDocumentStore.getState().setSourceUrl(url)
   if (themeOverride) applyThemeFromParam(themeOverride)
+  useDocumentStore.setState({ dirty: false })
 }
 
 /** Loads from URL — detects .edmindex vs single .edm */

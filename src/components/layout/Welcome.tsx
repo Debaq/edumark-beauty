@@ -74,6 +74,8 @@ export function Welcome() {
       } catch {
         setHtml('<p style="color:#f87171;">Error al parsear el documento.</p>')
       }
+      // Recién cargado = no hay cambios sin guardar
+      useDocumentStore.setState({ dirty: false })
     },
     [setSource, setFilename, setHtml]
   )
@@ -129,6 +131,8 @@ export function Welcome() {
         mergedSource: resolved,
         mergedHtml,
       })
+      // Recién cargado = no hay cambios sin guardar
+      useDocumentStore.setState({ dirty: false })
     },
     [loadProject, addToast]
   )
