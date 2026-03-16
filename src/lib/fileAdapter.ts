@@ -90,6 +90,63 @@ export async function openFileDialog(options?: {
 }
 
 /**
+ * Resolve an .edmindex by reading all referenced files from the same directory.
+ * Tauri only — uses the filesystem path of the .edmindex to find siblings.
+ * Returns a fileMap with all resolved content, or null if not in Tauri.
+ */
+export async function resolveEdmIndexFromDisk(
+  indexPath: string,
+  includes: string[],
+): Promise<Map<string, string> | null> {
+  if (!isTauri()) return null
+
+  const { readTextFile } = await import('@tauri-apps/plugin-fs')
+  const dir = indexPath.replace(/[/\\][^/\\]+$/, '')
+  const fileMap = new Map<string, string>()
+  const fetched = new Set<string>()
+
+  async function resolve(paths: string[]) {
+    for (const relPath of paths) {
+      const baseName = relPath.split('/').pop() ?? relPath
+      if (fetched.has(relPath) || fetched.has(baseName)) continue
+      fetched.add(relPath)
+      fetched.add(baseName)
+
+      const fullPath = `${dir}/${relPath}`
+      try {
+        const content = await readTextFile(fullPath)
+        fileMap.set(relPath, content)
+        fileMap.set(baseName, content)
+
+        // Check for nested includes
+        const nested = content.match(/@include\(([^)]+)\)/g)
+        const includeBlock = content.match(/^:::include\s+file="([^"]+)"/gm)
+        const inlineInclude = content.match(/^::include\s+file="([^"]+)"/gm)
+        const nestedPaths: string[] = []
+        nested?.forEach(m => {
+          const p = m.match(/@include\(([^)]+)\)/)?.[1]
+          if (p) nestedPaths.push(p)
+        })
+        includeBlock?.forEach(m => {
+          const p = m.match(/file="([^"]+)"/)?.[1]
+          if (p) nestedPaths.push(p)
+        })
+        inlineInclude?.forEach(m => {
+          const p = m.match(/file="([^"]+)"/)?.[1]
+          if (p) nestedPaths.push(p)
+        })
+        if (nestedPaths.length > 0) await resolve(nestedPaths)
+      } catch {
+        // File not found — skip
+      }
+    }
+  }
+
+  await resolve(includes)
+  return fileMap
+}
+
+/**
  * Open a directory picker and read all .edm/.edmindex files recursively.
  * - Tauri: native directory dialog + fs.readDir/readTextFile.
  * - Web: returns null (caller falls back to <input webkitdirectory>).

@@ -6,7 +6,7 @@ import type { Chapter } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useUIStore } from '@/store/ui'
 import { decodeAsync } from 'edumark-js'
-import { isTauri, openFileDialog, openDirectoryDialog } from '@/lib/fileAdapter'
+import { isTauri, openFileDialog, openDirectoryDialog, resolveEdmIndexFromDisk } from '@/lib/fileAdapter'
 import {
   isEdmIndex,
   isZipFile,
@@ -356,17 +356,27 @@ export function Welcome() {
     for (const f of files) {
       if (isEdmIndex(f.name)) {
         const required = parseAllIncludes(f.content)
-        if (required.length > 0) {
-          setPendingIndex({ indexSource: f.content, indexFilename: f.name, requiredFiles: required })
-        } else {
+        if (required.length === 0) {
           addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
+          continue
         }
+        // Tauri: resolver includes automáticamente desde el filesystem
+        if (f.path) {
+          const fileMap = await resolveEdmIndexFromDisk(f.path, required)
+          if (fileMap && fileMap.size > 0) {
+            await loadEdmIndex(f.content, f.name, fileMap)
+            setFilePath(f.path)
+            continue
+          }
+        }
+        // Web o fallback: abrir modal para que suba los archivos
+        setPendingIndex({ indexSource: f.content, indexFilename: f.name, requiredFiles: required })
       } else {
         await loadContent(f.content, f.name)
         if (f.path) setFilePath(f.path)
       }
     }
-  }, [loadContent, setFilePath, addToast])
+  }, [loadContent, loadEdmIndex, setFilePath, addToast])
 
   /** Abrir carpeta via diálogo nativo (Tauri) o fallback a <input webkitdirectory> */
   const handleOpenFolder = useCallback(async () => {
