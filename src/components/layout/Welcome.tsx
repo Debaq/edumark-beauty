@@ -429,12 +429,12 @@ export function Welcome() {
   )
 
   return (
-    <div className="h-full flex items-center justify-center p-8"
+    <div className="h-full flex-1 overflow-y-auto p-8"
       style={{
         background: 'radial-gradient(ellipse at 30% 20%, rgba(124,92,252,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(91,156,245,0.06) 0%, transparent 60%), var(--app-bg)',
       }}
     >
-      <div className="max-w-lg w-full flex flex-col items-center gap-8 animate-in">
+      <div className="max-w-lg w-full mx-auto flex flex-col items-center gap-8 animate-in">
         {/* Logo / titulo */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
