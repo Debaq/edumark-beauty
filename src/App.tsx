@@ -10,6 +10,7 @@ import { ExportModal } from '@/components/export/ExportModal'
 import { HelpModal } from '@/components/layout/HelpModal'
 import { SkillsModal } from '@/components/layout/SkillsModal'
 import { ToastContainer } from '@/components/ui/Toast'
+import { DialogModal } from '@/components/ui/DialogModal'
 import { Preview } from '@/components/preview/Preview'
 import { TitleBar } from '@/components/layout/TitleBar'
 import { isTauri, quickSave, saveFile } from '@/lib/fileAdapter'
@@ -146,6 +147,10 @@ export default function App() {
 
           try {
             const answer = await confirmSave('¿Guardar cambios antes de cerrar?')
+            if (answer === 'cancel') {
+              // User cancelled, don't close
+              return
+            }
             if (answer === 'save') {
               const saved = await quickSave(state.source, state.filePath)
               if (!saved) {
@@ -153,7 +158,7 @@ export default function App() {
                 await saveFile(blob, state.filename || 'documento.edm')
               }
             }
-            // Both 'save' and 'discard' close the window
+            // 'save' (after saving) and 'discard' close the window
             await win.destroy()
           } finally {
             closing = false
@@ -183,6 +188,7 @@ export default function App() {
         <Welcome />
         <HelpModal />
         <ToastContainer />
+        <DialogModal />
       </div>
     )
   }
@@ -199,6 +205,7 @@ export default function App() {
       <SkillsModal />
       <HelpModal />
       <ToastContainer />
+      <DialogModal />
     </div>
   )
 }

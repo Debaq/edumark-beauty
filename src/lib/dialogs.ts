@@ -1,41 +1,58 @@
-import { isTauri } from '@/lib/fileAdapter'
-
 /**
- * Show a confirmation dialog.
- * Tauri: native OS dialog. Web: browser confirm().
+ * Custom dialog system — renders styled modals in the app UI.
+ * Uses a global resolver pattern to bridge imperative calls with React rendering.
  */
-export async function confirm(message: string, title?: string): Promise<boolean> {
-  if (isTauri()) {
-    try {
-      const { ask } = await import('@tauri-apps/plugin-dialog')
-      return await ask(message, { title: title ?? 'Confirmar', kind: 'warning' })
-    } catch {
-      // fallback
-    }
+
+type DialogType = 'confirm' | 'save'
+
+interface DialogState {
+  open: boolean
+  type: DialogType
+  title: string
+  message: string
+  resolve: ((value: string) => void) | null
+}
+
+// Global state + listeners for the dialog
+let currentDialog: DialogState = { open: false, type: 'confirm', title: '', message: '', resolve: null }
+const listeners = new Set<() => void>()
+
+function notify() { listeners.forEach((fn) => fn()) }
+
+export function subscribeDialog(fn: () => void) {
+  listeners.add(fn)
+  return () => { listeners.delete(fn) }
+}
+
+export function getDialogState(): DialogState { return currentDialog }
+
+export function resolveDialog(value: string) {
+  if (currentDialog.resolve) {
+    currentDialog.resolve(value)
   }
-  return window.confirm(message)
+  currentDialog = { open: false, type: 'confirm', title: '', message: '', resolve: null }
+  notify()
+}
+
+function showDialog(type: DialogType, title: string, message: string): Promise<string> {
+  return new Promise((resolve) => {
+    currentDialog = { open: true, type, title, message, resolve }
+    notify()
+  })
 }
 
 /**
- * Show a yes/no/cancel save dialog before closing.
- * Returns 'save' | 'discard' | 'cancel'.
+ * Show a confirmation dialog. Returns true/false.
+ */
+export async function confirm(message: string, title = 'Confirmar'): Promise<boolean> {
+  const result = await showDialog('confirm', title, message)
+  return result === 'yes'
+}
+
+/**
+ * Show a save dialog before closing. Returns 'save' | 'discard' | 'cancel'.
  */
 export async function confirmSave(message: string): Promise<'save' | 'discard' | 'cancel'> {
-  if (isTauri()) {
-    try {
-      const { ask } = await import('@tauri-apps/plugin-dialog')
-      // Ask "Save changes?"  Yes = save, No = discard
-      const wantSave = await ask(message, {
-        title: 'Cambios sin guardar',
-        kind: 'warning',
-        okLabel: 'Guardar',
-        cancelLabel: 'Descartar',
-      })
-      return wantSave ? 'save' : 'discard'
-    } catch {
-      // fallback
-    }
-  }
-  const result = window.confirm(message + '\n\nAceptar = Guardar, Cancelar = Descartar')
-  return result ? 'save' : 'discard'
+  const result = await showDialog('save', 'Cambios sin guardar', message)
+  return result as 'save' | 'discard' | 'cancel'
 }
