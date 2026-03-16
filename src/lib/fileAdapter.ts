@@ -4,7 +4,7 @@
  */
 
 export function isTauri(): boolean {
-  return '__TAURI__' in window
+  return !!import.meta.env.TAURI_ENV_PLATFORM || '__TAURI_INTERNALS__' in window
 }
 
 /**

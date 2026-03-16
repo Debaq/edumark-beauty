@@ -429,208 +429,174 @@ export function Welcome() {
   )
 
   return (
-    <div className="h-full flex-1 overflow-y-auto p-8"
+    <div className="h-full flex-1 flex items-center justify-center p-6"
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       style={{
         background: 'radial-gradient(ellipse at 30% 20%, rgba(124,92,252,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(91,156,245,0.06) 0%, transparent 60%), var(--app-bg)',
       }}
     >
-      <div className="max-w-lg w-full mx-auto flex flex-col items-center gap-8 animate-in">
-        {/* Logo / titulo */}
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <img src={`${import.meta.env.BASE_URL}icon-192.webp`} alt="Edumark" className="w-12 h-12 rounded-xl shadow-lg" />
+      <div className={clsx(
+        'w-full max-w-3xl animate-in',
+        isDragOver && 'ring-2 ring-[var(--app-accent)] ring-offset-4 ring-offset-[var(--app-bg)] rounded-2xl'
+      )}>
+        {/* Header: logo + titulo */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <img src={`${import.meta.env.BASE_URL}icon-192.webp`} alt="Edumark" className="w-10 h-10 rounded-xl shadow-lg" />
           </div>
-          <h1 className="text-3xl font-bold text-[var(--app-fg)] mb-2">edumark-beauty</h1>
-          <p className="text-sm text-[var(--app-fg2)]">
-            Transforma tus documentos <span className="text-[var(--app-accent)] font-medium">.edm</span> en HTML, PDF y DOCX con estilo profesional
+          <h1 className="text-2xl font-bold text-[var(--app-fg)] mb-1">edumark-beauty</h1>
+          <p className="text-xs text-[var(--app-fg2)]">
+            Transforma tus documentos <span className="text-[var(--app-accent)] font-medium">.edm</span> en HTML, PDF y DOCX
           </p>
         </div>
 
-        {/* Drop zone */}
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={handleOpenFile}
-          className={clsx(
-            'w-full border-2 border-dashed rounded-2xl p-12 flex flex-col items-center gap-4 cursor-pointer transition-all',
-            isDragOver
-              ? 'border-[var(--app-accent)] bg-[var(--app-accent)]/5 scale-[1.02]'
-              : 'border-[var(--app-border)] hover:border-[var(--app-border-hover)] hover:bg-[var(--app-bg1)]'
-          )}
-        >
-          <div className="w-14 h-14 rounded-full bg-[var(--app-bg2)] flex items-center justify-center">
-            <Upload size={24} className="text-[var(--app-fg2)]" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-[var(--app-fg1)]">
-              Arrastra un archivo, carpeta o ZIP aqui
-            </p>
-            <p className="text-xs text-[var(--app-fg3)] mt-1">
-              .edm, .edmindex, .zip — o haz clic para seleccionar
-            </p>
-          </div>
-        </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".edm,.edmindex,.zip,.md,.txt"
-          onChange={handleFileInput}
-          className="hidden"
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          // @ts-expect-error webkitdirectory is a non-standard attribute
-          webkitdirectory=""
-          onChange={handleFolderInput}
-          className="hidden"
-        />
-        <input
-          ref={zipInputRef}
-          type="file"
-          accept=".zip"
-          onChange={handleZipInput}
-          className="hidden"
-        />
-
-        {/* Botones principales */}
-        <div className="flex gap-3 w-full">
-          <button
-            onClick={handleNewDocument}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-              bg-[var(--app-accent)] text-white text-sm font-medium
-              hover:opacity-90 transition-all"
-          >
-            <FilePlus size={18} />
-            Nuevo documento
-          </button>
-          <button
-            onClick={handleOpenFolder}
-            title="Abrir carpeta con .edmindex"
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
-              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
-              hover:text-[var(--app-accent)] transition-all"
-          >
-            <FolderOpen size={18} />
-          </button>
-          <button
-            onClick={handleOpenZip}
-            title="Abrir archivo .zip"
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
-              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
-              hover:text-[var(--app-accent)] transition-all"
-          >
-            <Archive size={18} />
-          </button>
-        </div>
-
-        {/* Abrir desde URL */}
-        {!showUrlInput ? (
-          <button
-            onClick={() => setShowUrlInput(true)}
-            className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-xl
-              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
-              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
-              hover:text-[var(--app-accent)] transition-all"
-          >
-            <Globe size={18} />
-            Abrir desde URL
-          </button>
-        ) : (
-          <div className="flex gap-2 w-full">
-            <input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLoadFromUrl()}
-              placeholder="https://ejemplo.com/archivo.edm"
-              autoFocus
-              className="flex-1 px-4 py-3 rounded-xl bg-[var(--app-bg1)] border border-[var(--app-border)]
-                text-sm text-[var(--app-fg)] placeholder:text-[var(--app-fg3)]
-                focus:border-[var(--app-accent)] focus:outline-none transition-all"
-            />
-            <button
-              onClick={handleLoadFromUrl}
-              disabled={urlLoading || !urlInput.trim()}
-              className="px-4 py-3 rounded-xl bg-[var(--app-accent)] text-white text-sm font-medium
-                hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-wait"
+        {/* Contenido en dos columnas */}
+        <div className="flex gap-6">
+          {/* Columna izquierda: acciones */}
+          <div className="flex-1 flex flex-col gap-3">
+            {/* Drop zone compacta */}
+            <div
+              onClick={handleOpenFile}
+              className="border-2 border-dashed rounded-xl px-6 py-5 flex items-center gap-4
+                cursor-pointer transition-all border-[var(--app-border)]
+                hover:border-[var(--app-border-hover)] hover:bg-[var(--app-bg1)]"
             >
-              {urlLoading ? '...' : 'Cargar'}
-            </button>
-          </div>
-        )}
-
-        {/* Separador */}
-        <div className="flex items-center gap-3 w-full">
-          <div className="flex-1 h-px bg-[var(--app-border)]" />
-          <span className="text-xs text-[var(--app-fg3)]">o</span>
-          <div className="flex-1 h-px bg-[var(--app-border)]" />
-        </div>
-
-        {/* Botones de ejemplos */}
-        <div className="flex flex-col gap-2 w-full">
-          <p className="text-xs text-[var(--app-fg3)] text-center mb-1">Cargar ejemplo desde GitHub</p>
-          {EXAMPLE_FILES.map(({ file, label }) => (
-            <button
-              key={file}
-              onClick={() => handleLoadExample(file)}
-              disabled={loadingExample !== null}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--app-bg1)]
-                border border-[var(--app-border)] text-sm font-medium text-[var(--app-fg1)]
-                hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all
-                disabled:opacity-50 disabled:cursor-wait"
-            >
-              <Sparkles size={16} />
-              {loadingExample === file ? 'Cargando...' : label}
-            </button>
-          ))}
-        </div>
-
-        {/* Prompts para LLMs */}
-        {skills.length > 0 && (
-          <>
-            <div className="flex items-center gap-3 w-full">
-              <div className="flex-1 h-px bg-[var(--app-border)]" />
-              <span className="text-xs text-[var(--app-fg3)]">prompts para LLMs</span>
-              <div className="flex-1 h-px bg-[var(--app-border)]" />
+              <div className="w-10 h-10 rounded-full bg-[var(--app-bg2)] flex items-center justify-center shrink-0">
+                <Upload size={18} className="text-[var(--app-fg2)]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--app-fg1)]">Abrir archivo</p>
+                <p className="text-[11px] text-[var(--app-fg3)]">.edm, .edmindex, .zip — o arrastra aqui</p>
+              </div>
             </div>
-            <div className="flex flex-col gap-2 w-full">
-              <p className="text-xs text-[var(--app-fg3)] text-center mb-1">
-                Descarga un prompt para que tu IA genere archivos .edm
-              </p>
-              {skills.map((skill) => (
-                <a
-                  key={skill.name}
-                  href={SKILLS_RAW_BASE + skill.name}
-                  download={skill.name}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--app-bg1)]
-                    border border-[var(--app-border)] text-sm font-medium text-[var(--app-fg1)]
-                    hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+
+            <input ref={fileInputRef} type="file" accept=".edm,.edmindex,.zip,.md,.txt" onChange={handleFileInput} className="hidden" />
+            {/* @ts-expect-error webkitdirectory is non-standard */}
+            <input ref={folderInputRef} type="file" webkitdirectory="" onChange={handleFolderInput} className="hidden" />
+            <input ref={zipInputRef} type="file" accept=".zip" onChange={handleZipInput} className="hidden" />
+
+            {/* Botones de acción */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleNewDocument}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+                  bg-[var(--app-accent)] text-white text-sm font-medium hover:opacity-90 transition-all"
+              >
+                <FilePlus size={16} />
+                Nuevo
+              </button>
+              <button
+                onClick={handleOpenFolder}
+                title="Abrir carpeta"
+                className="px-3 py-2.5 rounded-xl bg-[var(--app-bg1)] border border-[var(--app-border)]
+                  text-[var(--app-fg1)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+              >
+                <FolderOpen size={16} />
+              </button>
+              <button
+                onClick={handleOpenZip}
+                title="Abrir ZIP"
+                className="px-3 py-2.5 rounded-xl bg-[var(--app-bg1)] border border-[var(--app-border)]
+                  text-[var(--app-fg1)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+              >
+                <Archive size={16} />
+              </button>
+            </div>
+
+            {/* URL */}
+            {!showUrlInput ? (
+              <button
+                onClick={() => setShowUrlInput(true)}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl
+                  bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm
+                  text-[var(--app-fg1)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+              >
+                <Globe size={16} />
+                Abrir desde URL
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLoadFromUrl()}
+                  placeholder="https://ejemplo.com/archivo.edm"
+                  autoFocus
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-[var(--app-bg1)] border border-[var(--app-border)]
+                    text-sm text-[var(--app-fg)] placeholder:text-[var(--app-fg3)]
+                    focus:border-[var(--app-accent)] focus:outline-none transition-all"
+                />
+                <button
+                  onClick={handleLoadFromUrl}
+                  disabled={urlLoading || !urlInput.trim()}
+                  className="px-3 py-2.5 rounded-xl bg-[var(--app-accent)] text-white text-sm font-medium
+                    hover:opacity-90 transition-all disabled:opacity-50"
                 >
-                  <Download size={16} />
-                  {skill.name.replace('.md', '').replace(/_/g, ' ')}
-                </a>
-              ))}
-            </div>
-          </>
-        )}
-        {skillsLoading && (
-          <p className="text-xs text-[var(--app-fg3)]">Cargando prompts...</p>
-        )}
+                  {urlLoading ? '...' : 'Cargar'}
+                </button>
+              </div>
+            )}
 
-        {/* Ayuda */}
-        <button
-          onClick={() => setHelpModalOpen(true)}
-          className="flex items-center gap-2 text-xs text-[var(--app-fg3)]
-            hover:text-[var(--app-accent)] transition-colors mt-2"
-        >
-          <HelpCircle size={14} />
-          ¿Que es Edumark?
-        </button>
+            {/* Ayuda */}
+            <button
+              onClick={() => setHelpModalOpen(true)}
+              className="flex items-center gap-2 text-xs text-[var(--app-fg3)]
+                hover:text-[var(--app-accent)] transition-colors mt-1 mx-auto"
+            >
+              <HelpCircle size={13} />
+              ¿Que es Edumark?
+            </button>
+          </div>
+
+          {/* Separador vertical */}
+          <div className="w-px bg-[var(--app-border)]" />
+
+          {/* Columna derecha: ejemplos + skills */}
+          <div className="flex-1 flex flex-col gap-3">
+            <p className="text-[11px] uppercase tracking-wider text-[var(--app-fg3)] font-medium">Ejemplos</p>
+            {EXAMPLE_FILES.map(({ file, label }) => (
+              <button
+                key={file}
+                onClick={() => handleLoadExample(file)}
+                disabled={loadingExample !== null}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--app-bg1)]
+                  border border-[var(--app-border)] text-sm text-[var(--app-fg1)]
+                  hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all
+                  disabled:opacity-50 disabled:cursor-wait"
+              >
+                <Sparkles size={14} />
+                {loadingExample === file ? 'Cargando...' : label}
+              </button>
+            ))}
+
+            {skills.length > 0 && (
+              <>
+                <p className="text-[11px] uppercase tracking-wider text-[var(--app-fg3)] font-medium mt-2">
+                  Prompts para LLMs
+                </p>
+                {skills.map((skill) => (
+                  <a
+                    key={skill.name}
+                    href={SKILLS_RAW_BASE + skill.name}
+                    download={skill.name}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--app-bg1)]
+                      border border-[var(--app-border)] text-sm text-[var(--app-fg1)]
+                      hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-all"
+                  >
+                    <Download size={14} />
+                    {skill.name.replace('.md', '').replace(/_/g, ' ')}
+                  </a>
+                ))}
+              </>
+            )}
+            {skillsLoading && (
+              <p className="text-xs text-[var(--app-fg3)]">Cargando prompts...</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal de resolución de includes */}
