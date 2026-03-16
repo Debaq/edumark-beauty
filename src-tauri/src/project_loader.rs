@@ -184,11 +184,13 @@ pub fn resolve_edmindex(
         let batch: Vec<(String, PathBuf)> = queue
             .drain(..)
             .filter(|p| {
+                let is_new = fetched.insert(p.clone());
                 let base = Path::new(p)
                     .file_name()
                     .map(|f| f.to_string_lossy().to_string())
                     .unwrap_or_else(|| p.clone());
-                fetched.insert(p.clone()) && fetched.insert(base)
+                if base != *p { fetched.insert(base); }
+                is_new
             })
             .map(|p| {
                 let full = dir.join(&p);
