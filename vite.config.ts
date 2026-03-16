@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // Tauri sets TAURI_ENV_PLATFORM at dev/build time
 const isTauri = !!process.env.TAURI_ENV_PLATFORM
+const port = parseInt(process.env.VITE_PORT || '5173', 10)
 
 export default defineConfig({
   // Web deploy uses /edumark/ base; Tauri serves from root
@@ -15,9 +16,8 @@ export default defineConfig({
   // Prevent Vite from obscuring Rust errors in Tauri dev
   clearScreen: false,
   server: {
-    // Tauri expects a fixed port
     strictPort: true,
-    port: 5173,
+    port,
   },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
 })
