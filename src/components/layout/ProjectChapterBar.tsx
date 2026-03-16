@@ -26,7 +26,7 @@ export function ProjectChapterBar() {
     }
   }, [activeIndex])
 
-  if (!isProject || contentMode === 'book' || chapters.length <= 1) return null
+  if (!isProject || chapters.length <= 1) return null
 
   return (
     <div className="shrink-0 flex items-center bg-[var(--app-bg)] border-b border-[var(--app-border)] h-8 min-w-0">
