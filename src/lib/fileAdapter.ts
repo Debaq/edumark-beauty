@@ -111,13 +111,14 @@ export async function resolveEdmIndexFromDisk(
 ): Promise<Map<string, string> | null> {
   if (!isTauri()) return null
 
-  // Try Rust command first
+  // Rust command — pass includes from JS (already parsed correctly)
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const result = await invoke<FileMapResult>('resolve_edmindex', {
       indexPath,
+      includes,
     })
-    console.log('[fileAdapter] Rust resolve_edmindex result:', Object.keys(result.files).length, 'files,', result.errors.length, 'errors')
+    console.log('[fileAdapter] Rust resolve_edmindex:', Object.keys(result.files).length, 'files,', result.errors.length, 'errors')
     if (result.errors.length > 0) console.warn('[fileAdapter] Rust errors:', result.errors)
     if (Object.keys(result.files).length > 0) {
       return resultToMap(result)
@@ -126,11 +127,7 @@ export async function resolveEdmIndexFromDisk(
     console.warn('[fileAdapter] Rust resolve_edmindex failed:', e)
   }
 
-  // JS fallback: read files one by one via plugin-fs
-  console.log('[fileAdapter] Trying JS fallback for', includes.length, 'includes')
-  const result = await resolveEdmIndexJS(indexPath, includes)
-  console.log('[fileAdapter] JS fallback result:', result.size, 'files')
-  return result
+  return new Map()
 }
 
 /** JS fallback for resolving edmindex includes from disk */

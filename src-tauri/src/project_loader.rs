@@ -32,7 +32,6 @@ pub fn read_directory_files(dir_path: String) -> Result<FileMapResult, String> {
         return Err(format!("Not a directory: {}", dir_path));
     }
 
-    // Collect all valid file paths first
     let paths: Vec<(PathBuf, String, String)> = WalkDir::new(&root)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -56,20 +55,18 @@ pub fn read_directory_files(dir_path: String) -> Result<FileMapResult, String> {
         })
         .collect();
 
-    // Read all files in parallel
-    let results: Vec<(String, String, String, Result<String, String>)> = paths
+    let results: Vec<(String, String, Result<String, String>)> = paths
         .par_iter()
         .map(|(full, rel, base)| {
-            let content = fs::read_to_string(full)
-                .map_err(|e| format!("{}: {}", rel, e));
-            (rel.clone(), base.clone(), full.to_string_lossy().to_string(), content)
+            let content = fs::read_to_string(full).map_err(|e| format!("{}: {}", rel, e));
+            (rel.clone(), base.clone(), content)
         })
         .collect();
 
     let mut files = HashMap::new();
     let mut errors = Vec::new();
 
-    for (rel, base, _full, result) in results {
+    for (rel, base, result) in results {
         match result {
             Ok(content) => {
                 files.insert(base, content.clone());
@@ -82,14 +79,13 @@ pub fn read_directory_files(dir_path: String) -> Result<FileMapResult, String> {
     Ok(FileMapResult { files, errors })
 }
 
-/// Read all text files from a ZIP archive, in parallel decompression.
+/// Read all text files from a ZIP archive.
 #[tauri::command]
 pub fn read_zip_files(zip_path: String) -> Result<FileMapResult, String> {
     let file = fs::File::open(&zip_path).map_err(|e| format!("Cannot open ZIP: {}", e))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Invalid ZIP: {}", e))?;
 
-    // Collect entries first (ZipArchive is not Send, so we read sequentially but fast)
     let mut files = HashMap::new();
     let mut errors = Vec::new();
 
@@ -125,12 +121,11 @@ pub fn read_zip_files(zip_path: String) -> Result<FileMapResult, String> {
     Ok(FileMapResult { files, errors })
 }
 
-/// Parse all include references from source text.
+/// Parse include references from source text.
 fn parse_all_includes(source: &str) -> Vec<String> {
     let mut includes = Vec::new();
     let mut seen = HashSet::new();
 
-    // @include(file.edm)
     let re_at = Regex::new(r"@include\(([^)]+)\)").unwrap();
     for cap in re_at.captures_iter(source) {
         let path = cap[1].to_string();
@@ -139,7 +134,6 @@ fn parse_all_includes(source: &str) -> Vec<String> {
         }
     }
 
-    // :::include file="file.edm" or ::include file="file.edm"
     let re_block = Regex::new(r#":{2,3}include\s+file="([^"]+)""#).unwrap();
     for cap in re_block.captures_iter(source) {
         let path = cap[1].to_string();
@@ -151,10 +145,15 @@ fn parse_all_includes(source: &str) -> Vec<String> {
     includes
 }
 
-/// Resolve an .edmindex by reading all referenced files from the same directory.
+/// Resolve an .edmindex: reads the index file and all referenced .edm files.
+/// Accepts an optional list of includes from JS (already parsed).
+/// If includes is empty, parses the index file itself.
 /// Recursively resolves nested includes.
 #[tauri::command]
-pub fn resolve_edmindex(index_path: String) -> Result<FileMapResult, String> {
+pub fn resolve_edmindex(
+    index_path: String,
+    includes: Option<Vec<String>>,
+) -> Result<FileMapResult, String> {
     let index_file = PathBuf::from(&index_path);
     if !index_file.is_file() {
         return Err(format!("Not a file: {}", index_path));
@@ -164,18 +163,27 @@ pub fn resolve_edmindex(index_path: String) -> Result<FileMapResult, String> {
         .parent()
         .ok_or_else(|| "Cannot determine parent directory".to_string())?;
 
-    let index_source =
-        fs::read_to_string(&index_file).map_err(|e| format!("Cannot read index: {}", e))?;
+    // Use provided includes or parse from index file
+    let initial_includes = if let Some(inc) = includes {
+        if !inc.is_empty() {
+            inc
+        } else {
+            let source = fs::read_to_string(&index_file)
+                .map_err(|e| format!("Cannot read index: {}", e))?;
+            parse_all_includes(&source)
+        }
+    } else {
+        let source = fs::read_to_string(&index_file)
+            .map_err(|e| format!("Cannot read index: {}", e))?;
+        parse_all_includes(&source)
+    };
 
     let mut files = HashMap::new();
     let mut errors = Vec::new();
     let mut fetched = HashSet::new();
-
-    // Recursive resolution
-    let mut queue = parse_all_includes(&index_source);
+    let mut queue = initial_includes;
 
     while !queue.is_empty() {
-        // Read all files in current batch in parallel
         let batch: Vec<(String, PathBuf)> = queue
             .drain(..)
             .filter(|p| {
@@ -194,8 +202,8 @@ pub fn resolve_edmindex(index_path: String) -> Result<FileMapResult, String> {
         let results: Vec<(String, Result<String, String>)> = batch
             .par_iter()
             .map(|(rel, full)| {
-                let content = fs::read_to_string(full)
-                    .map_err(|e| format!("{}: {}", rel, e));
+                let content =
+                    fs::read_to_string(full).map_err(|e| format!("{}: {}", rel, e));
                 (rel.clone(), content)
             })
             .collect();
@@ -203,7 +211,6 @@ pub fn resolve_edmindex(index_path: String) -> Result<FileMapResult, String> {
         for (rel, result) in results {
             match result {
                 Ok(content) => {
-                    // Check for nested includes
                     let nested = parse_all_includes(&content);
                     for n in nested {
                         let base = Path::new(&n)
