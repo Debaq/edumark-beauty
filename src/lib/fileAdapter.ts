@@ -118,8 +118,7 @@ export async function resolveEdmIndexFromDisk(
       indexPath,
       includes,
     })
-    console.log('[fileAdapter] Rust resolve_edmindex:', Object.keys(result.files).length, 'files,', result.errors.length, 'errors')
-    if (result.errors.length > 0) console.warn('[fileAdapter] Rust errors:', result.errors)
+    if (result.errors.length > 0) console.warn('[fileAdapter] errors:', result.errors)
     if (Object.keys(result.files).length > 0) {
       return resultToMap(result)
     }
@@ -148,10 +147,8 @@ async function resolveEdmIndexJS(
       fetched.add(baseName)
 
       const fullPath = `${dir}/${relPath}`
-      console.log('[fileAdapter] JS reading:', fullPath)
       try {
         const content = await readTextFile(fullPath)
-        console.log('[fileAdapter] JS read OK:', relPath, content.length, 'chars')
         fileMap.set(relPath, content)
         fileMap.set(baseName, content)
 

@@ -162,17 +162,13 @@ pub fn resolve_edmindex(
         .parent()
         .ok_or_else(|| "Cannot determine parent directory".to_string())?;
 
-    eprintln!("[Rust resolve_edmindex] dir={}, includes={:?}", dir.display(), includes);
-
     // Use provided includes or parse from index file
     let initial_includes = if !includes.is_empty() {
         includes
     } else {
         let source = fs::read_to_string(&index_file)
             .map_err(|e| format!("Cannot read index: {}", e))?;
-        let parsed = parse_all_includes(&source);
-        eprintln!("[Rust resolve_edmindex] parsed from file: {:?}", parsed);
-        parsed
+        parse_all_includes(&source)
     };
 
     let mut files = HashMap::new();

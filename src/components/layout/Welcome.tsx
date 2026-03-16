@@ -169,9 +169,7 @@ export function Welcome() {
       // Intentar resolver desde disco (Tauri) si tenemos ruta
       let preloaded: Map<string, string> | undefined
       if (diskPath && isTauri()) {
-        console.log('[Welcome] Intentando resolver edmindex desde disco:', diskPath, 'includes:', required)
         const fileMap = await resolveEdmIndexFromDisk(diskPath, required)
-        console.log('[Welcome] Resultado resolución:', fileMap ? fileMap.size + ' archivos' : 'null')
         if (fileMap && fileMap.size > 0) preloaded = fileMap
       }
 
