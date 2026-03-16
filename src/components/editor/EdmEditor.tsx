@@ -97,11 +97,11 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
   // setSource se llama DENTRO del debounce para no disparar re-renders
   // en cada tecla (useSlides, useBookPagination, Panels escuchan source)
   const decodeSource = useCallback(
-    (text: string) => {
+    (text: string, fromUser = false) => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(async () => {
         setSource(text)
-        useDocumentStore.getState().markDirty()
+        if (fromUser) useDocumentStore.getState().markDirty()
         try {
           const html = await decodeAsync(text, { mode: 'teacher' })
           setHtml(html)
@@ -119,8 +119,12 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
+        // Only mark dirty if the change came from user input, not programmatic dispatch
+        const isUserInput = update.transactions.some(
+          (tr) => tr.isUserEvent('input') || tr.isUserEvent('delete') || tr.isUserEvent('move')
+        )
         const newSource = update.state.doc.toString()
-        decodeSource(newSource)
+        decodeSource(newSource, isUserInput)
       }
     })
 
