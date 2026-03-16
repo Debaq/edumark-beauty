@@ -1,10 +1,15 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicegui/tauri/dev/crates/tauri-utils/schema/capability.json",
   "identifier": "default",
   "description": "Default capabilities for Edumark Beauty",
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",

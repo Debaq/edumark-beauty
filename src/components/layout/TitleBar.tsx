@@ -4,49 +4,77 @@ import { Minus, Square, X, Maximize2 } from 'lucide-react'
 /**
  * Custom titlebar for Tauri (frameless window).
  * Only rendered when isTauri() is true — never in web.
- * Uses data-tauri-drag-region for native window dragging.
  */
 export function TitleBar() {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
     let unlisten: (() => void) | undefined
+    let cancelled = false
     ;(async () => {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window')
-      const win = getCurrentWindow()
-      setMaximized(await win.isMaximized())
-      unlisten = await win.onResized(async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
+        const win = getCurrentWindow()
+        if (cancelled) return
         setMaximized(await win.isMaximized())
-      })
+        unlisten = await win.onResized(async () => {
+          setMaximized(await win.isMaximized())
+        })
+      } catch { /* not in Tauri */ }
     })()
-    return () => { unlisten?.() }
+    return () => { cancelled = true; unlisten?.() }
   }, [])
 
   const handleMinimize = useCallback(async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    getCurrentWindow().minimize()
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().minimize()
+    } catch { /* ignore */ }
   }, [])
 
   const handleToggleMaximize = useCallback(async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    getCurrentWindow().toggleMaximize()
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().toggleMaximize()
+    } catch { /* ignore */ }
   }, [])
 
   const handleClose = useCallback(async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    getCurrentWindow().close()
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().close()
+    } catch { /* ignore */ }
+  }, [])
+
+  const handleDragStart = useCallback(async (e: React.MouseEvent) => {
+    // Only drag on left-click, and not on buttons
+    if (e.button !== 0) return
+    if ((e.target as HTMLElement).closest('button')) return
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().startDragging()
+    } catch { /* ignore */ }
+  }, [])
+
+  const handleDoubleClick = useCallback(async (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window')
+      await getCurrentWindow().toggleMaximize()
+    } catch { /* ignore */ }
   }, [])
 
   return (
     <div
-      data-tauri-drag-region
+      onMouseDown={handleDragStart}
+      onDoubleClick={handleDoubleClick}
       className="h-8 flex items-center justify-between bg-[var(--app-bg1)]
-        border-b border-[var(--app-border)] select-none shrink-0"
+        border-b border-[var(--app-border)] select-none shrink-0 cursor-default"
     >
       {/* Izquierda: logo + nombre */}
-      <div data-tauri-drag-region className="flex items-center gap-2 px-3 flex-1">
+      <div className="flex items-center gap-2 px-3 flex-1 pointer-events-none">
         <img src={`${import.meta.env.BASE_URL}icon-192.webp`} alt="" className="w-4 h-4" />
-        <span data-tauri-drag-region className="text-[11px] text-[var(--app-fg2)] font-medium">
+        <span className="text-[11px] text-[var(--app-fg2)] font-medium">
           Edumark Beauty
         </span>
       </div>
