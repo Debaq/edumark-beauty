@@ -23,3 +23,11 @@ walkdir = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rayon = "1"
 regex = "1"
+
+# Tier 2: image compression, QR, DOCX
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+webp = "0.3"
+qrcode = "0.14"
+base64 = "0.22"
+docx-rs = "0.4"
+scraper = "0.22"

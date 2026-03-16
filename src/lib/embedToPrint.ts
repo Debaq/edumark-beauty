@@ -1,4 +1,22 @@
+import { isTauri } from '@/lib/fileAdapter'
 import QRCode from 'qrcode'
+
+/** Generate a QR data URL — uses Rust in Tauri, qrcode.js in web */
+async function generateQR(text: string): Promise<string> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      return await invoke<string>('generate_qr', { text, size: 120 })
+    } catch {
+      // Fall through to JS
+    }
+  }
+  return QRCode.toDataURL(text, {
+    width: 120,
+    margin: 1,
+    color: { dark: '#000000', light: '#ffffff' },
+  })
+}
 
 /**
  * Replaces embed iframes with QR code + description for print/PDF export.
@@ -12,15 +30,10 @@ export async function replaceEmbedsForPrint(root: HTMLElement): Promise<void> {
     const src = el.getAttribute('data-embed-src')
     if (!src) continue
 
-    // Generate QR as data URL
     const qrSlot = el.querySelector<HTMLElement>('.edm-embed-qr')
     if (qrSlot) {
       try {
-        const dataUrl = await QRCode.toDataURL(src, {
-          width: 120,
-          margin: 1,
-          color: { dark: '#000000', light: '#ffffff' },
-        })
+        const dataUrl = await generateQR(src)
         const img = document.createElement('img')
         img.src = dataUrl
         img.alt = `QR: ${src}`
@@ -28,12 +41,10 @@ export async function replaceEmbedsForPrint(root: HTMLElement): Promise<void> {
         img.height = 120
         qrSlot.appendChild(img)
       } catch {
-        // Fallback: show URL text if QR fails
         qrSlot.textContent = '[QR]'
       }
     }
 
-    // Show print fallback, hide iframe
     el.classList.add('edm-embed-print-visible')
     const frame = el.parentElement?.querySelector<HTMLElement>('.edm-embed-frame')
     if (frame) frame.style.display = 'none'

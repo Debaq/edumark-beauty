@@ -1,19 +1,37 @@
+import { isTauri } from '@/lib/fileAdapter'
+
 /**
  * Convert an image File/Blob to a WebP (or JPEG fallback) base64 data URI.
  *
- * - Scales the image so its largest dimension ≤ maxDimension
- * - Encodes as WebP at the given quality (falls back to JPEG if WebP unsupported)
- * - Returns a complete data URI string: `data:image/webp;base64,...`
+ * - Tauri: uses Rust (image crate) for fast encoding
+ * - Web: uses OffscreenCanvas + convertToBlob
  */
 export async function imageToWebpBase64(
   file: File | Blob,
   maxDimension = 1200,
   quality = 0.82,
 ): Promise<string> {
+  // Tauri: delegate to Rust
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const buffer = await file.arrayBuffer()
+      const data = Array.from(new Uint8Array(buffer))
+      const result = await invoke<string>('compress_image', {
+        data,
+        maxDimension,
+        quality,
+      })
+      return result
+    } catch {
+      // Fall through to web implementation
+    }
+  }
+
+  // Web implementation
   const bitmap = await createImageBitmap(file)
   const { width, height } = bitmap
 
-  // Scale down if needed
   let w = width
   let h = height
   if (w > maxDimension || h > maxDimension) {
@@ -27,7 +45,6 @@ export async function imageToWebpBase64(
   ctx.drawImage(bitmap, 0, 0, w, h)
   bitmap.close()
 
-  // Try WebP first, fall back to JPEG
   let blob = await canvas.convertToBlob({ type: 'image/webp', quality })
   if (blob.type !== 'image/webp') {
     blob = await canvas.convertToBlob({ type: 'image/jpeg', quality })

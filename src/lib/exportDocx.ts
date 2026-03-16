@@ -1,14 +1,33 @@
-import { saveFile } from '@/lib/fileAdapter'
+import { isTauri, saveFile } from '@/lib/fileAdapter'
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   AlignmentType, LevelFormat, UnderlineType,
 } from 'docx'
 
 /**
- * Genera un archivo .docx a partir del HTML renderizado (modo HTML).
- * Usa la librería `docx` que funciona nativamente en el navegador.
+ * Genera un archivo .docx a partir del HTML renderizado.
+ * Tauri: usa Rust (docx-rs + scraper) para generar bytes.
+ * Web: usa la librería JS `docx`.
  */
 export async function exportDocx(html: string, filename: string): Promise<void> {
+  const outName = filename.replace(/\.edm$/, '') + '.docx'
+
+  // Tauri: delegate to Rust
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const bytes = await invoke<number[]>('generate_docx', { html })
+      const blob = new Blob([new Uint8Array(bytes)], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+      await saveFile(blob, outName)
+      return
+    } catch {
+      // Fall through to JS implementation
+    }
+  }
+
+  // Web implementation
   const parser = new DOMParser()
   const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html')
   const root = doc.body.firstElementChild!
@@ -78,7 +97,6 @@ export async function exportDocx(html: string, filename: string): Promise<void> 
     }
   }
 
-  // A4 defaults: 210x297mm, margins 25.4mm (1 inch)
   const mmToTwips = (mm: number) => Math.round(mm * 56.7)
 
   const document = new Document({
@@ -119,7 +137,7 @@ export async function exportDocx(html: string, filename: string): Promise<void> 
   })
 
   const blob = await Packer.toBlob(document)
-  await saveFile(blob, filename.replace(/\.edm$/, '') + '.docx')
+  await saveFile(blob, outName)
 }
 
 /** Parse inline elements (bold, italic, code) from a DOM node */
