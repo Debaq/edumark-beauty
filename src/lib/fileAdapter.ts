@@ -115,18 +115,22 @@ export async function resolveEdmIndexFromDisk(
   try {
     const { invoke } = await import('@tauri-apps/api/core')
     const result = await invoke<FileMapResult>('resolve_edmindex', {
-      // Tauri v2 auto-converts camelCase → snake_case for #[tauri::command] params
       indexPath,
     })
-    if (result && Object.keys(result.files).length > 0) {
+    console.log('[fileAdapter] Rust resolve_edmindex result:', Object.keys(result.files).length, 'files,', result.errors.length, 'errors')
+    if (result.errors.length > 0) console.warn('[fileAdapter] Rust errors:', result.errors)
+    if (Object.keys(result.files).length > 0) {
       return resultToMap(result)
     }
   } catch (e) {
-    console.warn('[fileAdapter] Rust resolve_edmindex failed, using JS fallback:', e)
+    console.warn('[fileAdapter] Rust resolve_edmindex failed:', e)
   }
 
   // JS fallback: read files one by one via plugin-fs
-  return resolveEdmIndexJS(indexPath, includes)
+  console.log('[fileAdapter] Trying JS fallback for', includes.length, 'includes')
+  const result = await resolveEdmIndexJS(indexPath, includes)
+  console.log('[fileAdapter] JS fallback result:', result.size, 'files')
+  return result
 }
 
 /** JS fallback for resolving edmindex includes from disk */
@@ -147,8 +151,10 @@ async function resolveEdmIndexJS(
       fetched.add(baseName)
 
       const fullPath = `${dir}/${relPath}`
+      console.log('[fileAdapter] JS reading:', fullPath)
       try {
         const content = await readTextFile(fullPath)
+        console.log('[fileAdapter] JS read OK:', relPath, content.length, 'chars')
         fileMap.set(relPath, content)
         fileMap.set(baseName, content)
 
@@ -159,8 +165,8 @@ async function resolveEdmIndexJS(
         const blockIncludes = content.matchAll(/:{2,3}include\s+file="([^"]+)"/g)
         for (const m of blockIncludes) nestedPaths.push(m[1])
         if (nestedPaths.length > 0) await resolve(nestedPaths)
-      } catch {
-        // File not found — skip
+      } catch (e) {
+        console.warn('[fileAdapter] JS read FAILED:', fullPath, e)
       }
     }
   }
