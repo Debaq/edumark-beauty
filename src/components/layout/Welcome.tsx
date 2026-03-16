@@ -154,6 +154,38 @@ export function Welcome() {
     [loadEdmIndex, loadContent, addToast]
   )
 
+  /**
+   * Abre un .edmindex: intenta resolver includes desde disco (Tauri),
+   * luego muestra modal con archivos pre-cargados o vacíos.
+   */
+  const openEdmIndex = useCallback(
+    async (source: string, filename: string, diskPath?: string) => {
+      const required = parseAllIncludes(source)
+      if (required.length === 0) {
+        addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
+        return
+      }
+
+      // Intentar resolver desde disco (Tauri) si tenemos ruta
+      let preloaded: Map<string, string> | undefined
+      if (diskPath && isTauri()) {
+        console.log('[Welcome] Intentando resolver edmindex desde disco:', diskPath, 'includes:', required)
+        const fileMap = await resolveEdmIndexFromDisk(diskPath, required)
+        console.log('[Welcome] Resultado resolución:', fileMap ? fileMap.size + ' archivos' : 'null')
+        if (fileMap && fileMap.size > 0) preloaded = fileMap
+      }
+
+      setPendingIndex({
+        indexSource: source,
+        indexFilename: filename,
+        requiredFiles: required,
+        initialFileMap: preloaded,
+        indexPath: diskPath,
+      })
+    },
+    [addToast]
+  )
+
   /** Maneja un archivo individual */
   const handleFile = useCallback(
     async (file: File) => {
@@ -168,37 +200,18 @@ export function Welcome() {
         return
       }
 
-      // .edmindex suelto → extraer TODOS los includes y abrir modal
+      // .edmindex suelto
       if (isEdmIndex(file.name)) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const text = reader.result as string
-          const required = parseAllIncludes(text)
-
-          if (required.length > 0) {
-            // Abrir modal para que el usuario suba los archivos
-            setPendingIndex({
-              indexSource: text,
-              indexFilename: file.name,
-              requiredFiles: required,
-            })
-          } else {
-            // .edmindex sin ningún tipo de include → error
-            addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
-          }
-        }
-        reader.readAsText(file)
+        const text = await file.text()
+        await openEdmIndex(text, file.name)
         return
       }
 
       // Archivo .edm/.md/.txt normal
-      const reader = new FileReader()
-      reader.onload = () => {
-        loadContent(reader.result as string, file.name)
-      }
-      reader.readAsText(file)
+      const text = await file.text()
+      loadContent(text, file.name)
     },
-    [loadContent, processFileMap, addToast]
+    [loadContent, processFileMap, addToast, openEdmIndex]
   )
 
   /** Callback del modal: el usuario terminó de subir archivos */
@@ -359,30 +372,13 @@ export function Welcome() {
     if (!files) return
     for (const f of files) {
       if (isEdmIndex(f.name)) {
-        const required = parseAllIncludes(f.content)
-        if (required.length === 0) {
-          addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
-          continue
-        }
-        // Tauri: pre-resolver desde disco y mostrar modal con archivos ya cargados
-        let preloaded: Map<string, string> | undefined
-        if (f.path) {
-          const fileMap = await resolveEdmIndexFromDisk(f.path, required)
-          if (fileMap && fileMap.size > 0) preloaded = fileMap
-        }
-        setPendingIndex({
-          indexSource: f.content,
-          indexFilename: f.name,
-          requiredFiles: required,
-          initialFileMap: preloaded,
-          indexPath: f.path,
-        })
+        await openEdmIndex(f.content, f.name, f.path)
       } else {
         await loadContent(f.content, f.name)
         if (f.path) setFilePath(f.path)
       }
     }
-  }, [loadContent, setFilePath, addToast])
+  }, [loadContent, setFilePath, openEdmIndex])
 
   /** Abrir carpeta via diálogo nativo (Tauri) o fallback a <input webkitdirectory> */
   const handleOpenFolder = useCallback(async () => {
