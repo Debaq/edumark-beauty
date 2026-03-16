@@ -1,5 +1,6 @@
 import type { ThemeConfig } from '@/types/theme'
 import { exportFullHtml } from './exportHtml'
+import { replaceEmbedsForPrint } from './embedToPrint'
 
 /**
  * Genera un PDF a partir del HTML renderizado usando html2pdf.js
@@ -21,6 +22,9 @@ export async function exportPdf(
 
   // Buscar el .edm-preview dentro del container
   const previewEl = container.querySelector('.edm-preview') || container
+
+  // Replace embed iframes with QR codes for print
+  await replaceEmbedsForPrint(previewEl as HTMLElement)
 
   await html2pdf()
     .set({

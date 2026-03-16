@@ -159,6 +159,15 @@
   outline-offset: 2px;
 }
 
+/* Marquee selection preview */
+.edm-svg-marquee-preview {
+  fill: rgba(59, 130, 246, 0.08);
+  stroke: #3b82f6;
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
 /* Creation preview shape */
 .edm-svg-creation-preview {
   fill: rgba(59, 130, 246, 0.1);

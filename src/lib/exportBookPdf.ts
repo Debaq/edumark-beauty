@@ -2,6 +2,7 @@ import type { ThemeConfig } from '@/types/theme'
 import type { PageConfig } from '@/types/contentMode'
 import type { BookLayoutConfig, PageLayout } from '@/types/bookLayout'
 import { exportFullHtml } from './exportHtml'
+import { replaceEmbedsForPrint } from './embedToPrint'
 
 function getLayoutCss(layout: PageLayout, columnGap: number): string {
   if (layout === 'two-columns') return `column-count:2;column-gap:${columnGap}px;`
@@ -85,6 +86,9 @@ export async function exportBookPdf(
 
   // Book PDF: expand all <details> so solutions are visible in print
   previewEl.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
+
+  // Replace embed iframes with QR codes for print
+  await replaceEmbedsForPrint(previewEl as HTMLElement)
 
   // Calcular números de página para :::include links
   fillIncludePageNumbers(

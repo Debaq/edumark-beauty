@@ -85,11 +85,6 @@ function moveElement(el: Element, dx: number, dy: number): void {
     case 'polygon':
     case 'polyline': {
       const pts = el.getAttribute('points') ?? ''
-      const newPts = pts.replace(/[\d.e+-]+/g, (match) => {
-        // This is a simplistic approach — alternate x,y
-        return match
-      })
-      // Better: parse as pairs
       const pairs = pts.trim().split(/\s+/).map((pair) => {
         const [px, py] = pair.split(',').map(Number)
         return `${Math.round((px + dx) * 100) / 100},${Math.round((py + dy) * 100) / 100}`
@@ -126,7 +121,7 @@ export function SvgEditorPanel() {
   const addToast = useUIStore((s) => s.addToast)
 
   const [svgContent, setSvgContent] = useState(originalSvg ?? '')
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [activeTool, setActiveTool] = useState<SvgTool>('select')
   const [viewTransform, setViewTransform] = useState({ x: 40, y: 40, scale: 1 })
 
@@ -167,6 +162,30 @@ export function SvgEditorPanel() {
     setRedoLen(redoStackRef.current.length)
   }, [svgContent])
 
+  // Apply SVG mutation with undo support
+  const mutateSvg = useCallback((mutator: (svgEl: SVGSVGElement) => void) => {
+    const svgEl = parseSvg(svgContent)
+    if (!svgEl) return
+    pushUndo()
+    mutator(svgEl)
+    setSvgContent(serializeSvg(svgEl))
+  }, [svgContent, pushUndo])
+
+  // Delete selected elements
+  const handleDelete = useCallback(() => {
+    if (selectedIndices.length === 0) return
+    mutateSvg((svgEl) => {
+      const children = getSelectableChildren(svgEl)
+      // Delete in reverse order to preserve indices
+      const sorted = [...selectedIndices].sort((a, b) => b - a)
+      for (const idx of sorted) {
+        const el = children[idx]
+        if (el) el.remove()
+      }
+    })
+    setSelectedIndices([])
+  }, [selectedIndices, mutateSvg])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -178,44 +197,36 @@ export function SvgEditorPanel() {
       ) {
         e.preventDefault(); redo()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedIdx != null) { e.preventDefault(); handleDelete() }
+        if (selectedIndices.length > 0) { e.preventDefault(); handleDelete() }
       } else if (e.key === 'Escape') {
-        setSelectedIdx(null)
+        setSelectedIndices([])
         setActiveTool('select')
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [undo, redo, selectedIdx]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Apply SVG mutation with undo support
-  const mutateSvg = useCallback((mutator: (svgEl: SVGSVGElement) => void) => {
-    const svgEl = parseSvg(svgContent)
-    if (!svgEl) return
-    pushUndo()
-    mutator(svgEl)
-    setSvgContent(serializeSvg(svgEl))
-  }, [svgContent, pushUndo])
+  }, [undo, redo, selectedIndices, handleDelete])
 
   // Push undo once at the start of a drag/resize interaction
   const handleInteractionStart = useCallback(() => {
     pushUndo()
   }, [pushUndo])
 
-  // Move element (called on each mousemove — no undo push)
-  const handleMoveElement = useCallback((idx: number, dx: number, dy: number) => {
+  // Move elements (called on each mousemove — no undo push)
+  const handleMoveElements = useCallback((indices: number[], dx: number, dy: number) => {
     const svgEl = parseSvg(svgContent)
     if (!svgEl) return
     const children = getSelectableChildren(svgEl)
-    const el = children[idx]
-    if (!el) return
-    moveElement(el, dx, dy)
+    for (const idx of indices) {
+      const el = children[idx]
+      if (el) moveElement(el, dx, dy)
+    }
     setSvgContent(serializeSvg(svgEl))
   }, [svgContent])
 
-  // Select element (no undo — undo is pushed on interaction start)
-  const handleSelectElement = useCallback((idx: number | null) => {
-    setSelectedIdx(idx)
+  // Select elements
+  const handleSelectElements = useCallback((indices: number[]) => {
+    setSelectedIndices(indices)
   }, [])
 
   // Batch resize (called on each mousemove during resize — no undo push)
@@ -230,17 +241,6 @@ export function SvgEditorPanel() {
     }
     setSvgContent(serializeSvg(svgEl))
   }, [svgContent])
-
-  // Delete selected
-  const handleDelete = useCallback(() => {
-    if (selectedIdx == null) return
-    mutateSvg((svgEl) => {
-      const children = getSelectableChildren(svgEl)
-      const el = children[selectedIdx]
-      if (el) el.remove()
-    })
-    setSelectedIdx(null)
-  }, [selectedIdx, mutateSvg])
 
   // Create shape
   const handleCreateShape = useCallback((tool: SvgTool, x: number, y: number, w: number, h: number) => {
@@ -290,9 +290,8 @@ export function SvgEditorPanel() {
 
       if (el) {
         svgEl.appendChild(el)
-        // Select the new element
         const newChildren = getSelectableChildren(svgEl)
-        setSelectedIdx(newChildren.length - 1)
+        setSelectedIndices([newChildren.length - 1])
       }
     })
     setActiveTool('select')
@@ -300,10 +299,10 @@ export function SvgEditorPanel() {
 
   // Change attribute from properties panel
   const handleChangeAttr = useCallback((attr: string, value: string) => {
-    if (selectedIdx == null) return
+    if (selectedIndices.length !== 1) return
     mutateSvg((svgEl) => {
       const children = getSelectableChildren(svgEl)
-      const el = children[selectedIdx]
+      const el = children[selectedIndices[0]]
       if (!el) return
       if (attr === '_textContent') {
         el.textContent = value
@@ -311,7 +310,7 @@ export function SvgEditorPanel() {
         el.setAttribute(attr, value)
       }
     })
-  }, [selectedIdx, mutateSvg])
+  }, [selectedIndices, mutateSvg])
 
   // Change viewBox
   const handleChangeViewBox = useCallback((viewBox: string) => {
@@ -324,7 +323,6 @@ export function SvgEditorPanel() {
   const handleSave = useCallback(() => {
     if (!diagramId) return
 
-    // Re-parse and re-serialize to get clean output
     const svgEl = parseSvg(svgContent)
     if (!svgEl) {
       addToast('Error: SVG invalido', 'error')
@@ -332,7 +330,6 @@ export function SvgEditorPanel() {
     }
 
     // Remove width/height that were injected for the canvas display
-    // (the spec says to use viewBox only)
     if (svgEl.hasAttribute('width') && svgEl.hasAttribute('viewBox')) {
       svgEl.removeAttribute('width')
       svgEl.removeAttribute('height')
@@ -367,13 +364,13 @@ export function SvgEditorPanel() {
     setViewTransform({ x: 40, y: 40, scale: 1 })
   }, [])
 
-  // Get properties for selected element
+  // Get properties for selected element (only single selection)
   const selectedAttrs = (() => {
-    if (selectedIdx == null) return null
+    if (selectedIndices.length !== 1) return null
     const svgEl = parseSvg(svgContent)
     if (!svgEl) return null
     const children = getSelectableChildren(svgEl)
-    const el = children[selectedIdx]
+    const el = children[selectedIndices[0]]
     if (!el) return null
     return readElementAttrs(el)
   })()
@@ -404,7 +401,7 @@ export function SvgEditorPanel() {
         onUndo={undo}
         onRedo={redo}
         onDelete={handleDelete}
-        hasSelection={selectedIdx != null}
+        hasSelection={selectedIndices.length > 0}
         zoom={viewTransform.scale}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
@@ -415,13 +412,13 @@ export function SvgEditorPanel() {
       <div className="edm-svg-editor-body">
         <SvgCanvas
           svgContent={svgContent}
-          selectedIdx={selectedIdx}
+          selectedIndices={selectedIndices}
           activeTool={activeTool}
           viewTransform={viewTransform}
           onViewTransformChange={setViewTransform}
-          onSelectElement={handleSelectElement}
+          onSelectElements={handleSelectElements}
           onInteractionStart={handleInteractionStart}
-          onMoveElement={handleMoveElement}
+          onMoveElements={handleMoveElements}
           onResizeBatch={handleResizeBatch}
           onCreateShape={handleCreateShape}
         />

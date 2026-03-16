@@ -3,12 +3,12 @@
   "short_name": "Edumark",
   "icons": [
     {
-      "src": "/icon-192.webp",
+      "src": "/edumark/icon-192.webp",
       "sizes": "192x192",
       "type": "image/webp"
     },
     {
-      "src": "/icon-512.webp",
+      "src": "/edumark/icon-512.webp",
       "sizes": "512x512",
       "type": "image/webp"
     }

@@ -12,6 +12,9 @@ export function ColorPicker({ label, value, onChange }: Props) {
     [onChange]
   )
 
+  // <input type="color"> only accepts #rrggbb — strip alpha suffix if present
+  const inputValue = value.length > 7 ? value.slice(0, 7) : value
+
   return (
     <label className="flex items-center justify-between gap-3 py-1">
       <span className="text-xs text-[var(--app-fg2)] truncate">{label}</span>
@@ -22,7 +25,7 @@ export function ColorPicker({ label, value, onChange }: Props) {
         />
         <input
           type="color"
-          value={value}
+          value={inputValue}
           onChange={handleChange}
           className="w-6 h-6 cursor-pointer bg-transparent border-0 p-0"
         />
