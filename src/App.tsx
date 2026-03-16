@@ -12,7 +12,8 @@ import { SkillsModal } from '@/components/layout/SkillsModal'
 import { ToastContainer } from '@/components/ui/Toast'
 import { Preview } from '@/components/preview/Preview'
 import { TitleBar } from '@/components/layout/TitleBar'
-import { isTauri } from '@/lib/fileAdapter'
+import { isTauri, quickSave, saveFile } from '@/lib/fileAdapter'
+import { confirmSave } from '@/lib/dialogs'
 import { decodeAsync } from 'edumark-js'
 import { isEdmIndex, fetchEdmIndexFromUrl, resolveEdmIndex, parseAllIncludes } from '@/lib/edmindex'
 import { extractTitle } from '@/store/document'
@@ -122,6 +123,41 @@ export default function App() {
       .catch(() => {
         useUIStore.getState().addToast('No se pudo cargar el archivo desde la URL', 'error')
       })
+  }, [])
+
+  // Tauri: intercept window close, ask to save unsaved work
+  useEffect(() => {
+    if (!isTauri()) return
+    let unlisten: (() => void) | undefined
+    ;(async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window')
+        const win = getCurrentWindow()
+        unlisten = await win.onCloseRequested(async (event) => {
+          const state = useDocumentStore.getState()
+          if (!state.source) {
+            // No document open, close directly
+            return
+          }
+
+          event.preventDefault()
+
+          const answer = await confirmSave('¿Guardar cambios antes de cerrar?')
+          if (answer === 'save') {
+            // Try quick-save if we have a path
+            const saved = await quickSave(state.source, state.filePath)
+            if (!saved) {
+              // No path known: use save dialog
+              const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
+              await saveFile(blob, state.filename || 'documento.edm')
+            }
+          }
+          // Both 'save' (after saving) and 'discard' close the window
+          await win.destroy()
+        })
+      } catch { /* not in Tauri */ }
+    })()
+    return () => { unlisten?.() }
   }, [])
 
   const showTitleBar = isTauri()

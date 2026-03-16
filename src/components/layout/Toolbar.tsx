@@ -5,6 +5,7 @@ import {
   Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
 import { saveFile, quickSave } from '@/lib/fileAdapter'
+import { confirm } from '@/lib/dialogs'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
@@ -245,7 +246,11 @@ export function Toolbar() {
           <HelpCircle size={14} />
         </button>
         <button
-          onClick={reset}
+          onClick={async () => {
+            if (await confirm('¿Cerrar el documento actual? Los cambios no guardados se perderan.', 'Cerrar documento')) {
+              reset()
+            }
+          }}
           title="Cerrar documento"
           className="p-2 rounded-lg text-[var(--app-fg1)] hover:bg-[var(--app-bg2)]
             hover:text-[var(--app-accent)] transition-colors"
