@@ -96,6 +96,7 @@ export function MermaidEditorPanel() {
 
     if (newSource !== source) {
       useDocumentStore.getState().setSource(newSource)
+      useDocumentStore.getState().markDirty()
       addToast('Diagrama Mermaid actualizado', 'success')
     } else {
       addToast('Sin cambios', 'info')

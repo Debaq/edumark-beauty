@@ -72,6 +72,7 @@ export const useContentModeStore = create<ContentModeStore>((set, get) => ({
     const newSource = updateSlideMetadataInSource(source, index, { template })
     if (newSource !== source) {
       useDocumentStore.getState().setSource(newSource)
+      useDocumentStore.getState().markDirty()
     }
   },
   setSlideZoom: (index, zoom) => {
@@ -88,6 +89,7 @@ export const useContentModeStore = create<ContentModeStore>((set, get) => ({
     })
     if (newSource !== source) {
       useDocumentStore.getState().setSource(newSource)
+      useDocumentStore.getState().markDirty()
     }
   },
   clearSlideZoom: (index) => {
@@ -103,6 +105,7 @@ export const useContentModeStore = create<ContentModeStore>((set, get) => ({
     })
     if (newSource !== source) {
       useDocumentStore.getState().setSource(newSource)
+      useDocumentStore.getState().markDirty()
     }
   },
   setFreeTextMode: (mode) => set((s) => ({

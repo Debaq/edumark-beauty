@@ -862,6 +862,7 @@ function syncThemeToSource() {
   const next = updateThemeInSource(source, modePresets, modeConfigs)
   if (next !== source) {
     useDocumentStore.getState().setSource(next)
+    useDocumentStore.getState().markDirty()
   }
 }
 

@@ -41,6 +41,7 @@ interface DocumentStore {
   dirty: boolean
 
   setSource: (source: string) => void
+  markDirty: () => void
   setFilename: (name: string) => void
   setHtml: (html: string) => void
   setSourceUrl: (url: string) => void
@@ -96,7 +97,8 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   mergedHtml: '',
   dirty: false,
 
-  setSource: (source) => set({ source, dirty: true }),
+  setSource: (source) => set({ source }),
+  markDirty: () => set({ dirty: true }),
   setFilename: (name) => set({ filename: name }),
   setHtml: (html) => set({ html }),
   setSourceUrl: (url) => set({ sourceUrl: url }),

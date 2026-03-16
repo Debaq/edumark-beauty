@@ -58,6 +58,7 @@ function doPersist(config: BookLayoutConfig | null) {
   }
   if (newSource !== source) {
     useDocumentStore.getState().setSource(newSource)
+    useDocumentStore.getState().markDirty()
   }
 }
 

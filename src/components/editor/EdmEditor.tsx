@@ -101,6 +101,7 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(async () => {
         setSource(text)
+        useDocumentStore.getState().markDirty()
         try {
           const html = await decodeAsync(text, { mode: 'teacher' })
           setHtml(html)

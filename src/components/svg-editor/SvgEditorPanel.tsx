@@ -341,6 +341,7 @@ export function SvgEditorPanel() {
     const newSource = replaceDiagramSvg(source, diagramId, cleanSvg)
     if (newSource !== source) {
       useDocumentStore.getState().setSource(newSource)
+      useDocumentStore.getState().markDirty()
       addToast('SVG actualizado', 'success')
     } else {
       addToast('Sin cambios', 'info')
