@@ -39,41 +39,49 @@ const BG_COLORS = [
 const EDUMARK_BLOCKS = [
   {
     category: 'Estructura', items: [
-      { type: 'hero', label: 'Portada', color: '#f59e0b', content: 'title: "Titulo del documento"\nauthor: "Autor"\nsubject: "Materia"\nlevel: "Nivel"\n- Tema 1\n- Tema 2' },
-      { type: 'objective', label: 'Objetivo', color: '#fcd34d', content: 'Objetivo aqui' },
-      { type: 'definition', label: 'Definicion', color: '#60a5fa', content: 'Definicion aqui' },
-      { type: 'key-concept', label: 'Concepto clave', color: '#f472b6', content: 'Concepto aqui' },
-      { type: 'summary', label: 'Resumen', color: '#818cf8', content: 'Resumen aqui' },
+      { type: 'hero', label: 'Portada', color: '#f59e0b', content: 'title: "Titulo del documento"\nauthor: "Autor"\nsubject: "Materia"\nlevel: "Nivel"\nunit: "Unidad"\n- Tema 1\n- Tema 2' },
+      { type: 'objective', label: 'Objetivo', color: '#fcd34d', content: 'Al finalizar este tema el estudiante sera capaz de:\n- Describir X.\n- Identificar Y.\n- Comparar A con B.' },
+      { type: 'definition', label: 'Definicion', color: '#60a5fa', attrs: 'id="def-"', content: '**Termino** | Definicion del termino aqui.' },
+      { type: 'key-concept', label: 'Concepto clave', color: '#f472b6', content: 'Concepto clave aqui.' },
+      { type: 'summary', label: 'Resumen', color: '#818cf8', content: '- Punto esencial 1.\n- Punto esencial 2.\n- Punto esencial 3.' },
     ],
   },
   {
     category: 'Contenido', items: [
-      { type: 'note', label: 'Nota', color: '#a3e635', content: 'Nota aqui' },
-      { type: 'example', label: 'Ejemplo', color: '#34d399', content: 'Ejemplo aqui' },
-      { type: 'exercise', label: 'Ejercicio', color: '#fb923c', content: 'Ejercicio aqui' },
-      { type: 'application', label: 'Aplicacion', color: '#2dd4bf', content: 'Aplicacion aqui' },
+      { type: 'note', label: 'Nota', color: '#a3e635', content: 'Nota aqui.' },
+      { type: 'example', label: 'Ejemplo', color: '#34d399', attrs: 'title="Ejemplo"', content: 'Ejemplo practico aqui.' },
+      { type: 'exercise', label: 'Ejercicio', color: '#fb923c', attrs: 'id="ex-" title="Ejercicio"', content: 'Enunciado del ejercicio aqui.\n\n:::solution\nSolucion aqui.\n:::' },
+      { type: 'application', label: 'Aplicacion', color: '#2dd4bf', attrs: 'title="Aplicacion"', content: 'Conexion con el mundo real o profesional aqui.' },
     ],
   },
   {
     category: 'Alerta', items: [
-      { type: 'warning', label: 'Advertencia', color: '#f87171', content: 'Advertencia aqui' },
-      { type: 'aside', label: 'Nota al margen', color: '#a78bfa', content: 'Nota al margen aqui' },
+      { type: 'warning', label: 'Advertencia', color: '#f87171', content: 'Advertencia sobre error comun aqui.' },
+      { type: 'aside', label: 'Nota al margen', color: '#a78bfa', content: 'Dato curioso o informacion complementaria aqui.' },
     ],
   },
   {
     category: 'Visual', items: [
-      { type: 'diagram', label: 'Diagrama', color: '#38bdf8', content: 'Descripcion del diagrama' },
-      { type: 'image', label: 'Imagen', color: '#4ade80', content: 'src: url\nalt: Descripcion' },
-      { type: 'comparison', label: 'Comparacion', color: '#c084fc', content: 'Comparacion aqui' },
+      { type: 'diagram', label: 'Diagrama', color: '#38bdf8', attrs: 'id="fig-" title="Diagrama"', content: 'Descripcion del diagrama aqui.\n\n```mermaid\ngraph TD\n    A[Inicio] --> B[Fin]\n```' },
+      { type: 'image', label: 'Imagen', color: '#4ade80', attrs: 'id="fig-"', content: 'file: imagen.jpg\ntitle: "Titulo de la imagen"\ndescription: "Descripcion de la imagen."\nsource: "Fuente"\nalt: "Texto alternativo"' },
+      { type: 'embed', label: 'Embed', color: '#6366f1', attrs: 'id="embed-"', content: 'src: https://example.com/embed\ntitle: "Titulo del recurso"\ntype: youtube\nauthor: "Autor"\ndescription: "Descripcion del contenido embebido."' },
+      { type: 'comparison', label: 'Comparacion', color: '#c084fc', attrs: 'title="Comparacion"', content: '| Caracteristica | A | B |\n|---|---|---|\n| Propiedad 1 | Valor | Valor |\n| Propiedad 2 | Valor | Valor |' },
     ],
   },
   {
     category: 'Especial', items: [
-      { type: 'question', label: 'Pregunta', color: '#facc15', content: '¿Pregunta aqui?\n- [ ] Opcion A\n- [x] Opcion B (correcta)\n- [ ] Opcion C' },
-      { type: 'mnemonic', label: 'Mnemotecnia', color: '#e879f9', content: 'Regla mnemotecnica aqui' },
-      { type: 'history', label: 'Historia', color: '#d97757', content: 'Contexto historico aqui' },
-      { type: 'reference', label: 'Referencia', color: '#94a3b8', content: 'title: Titulo\nurl: url' },
-      { type: 'math', label: 'Matematica', color: '#5eead4', content: '$$\nx^2 + y^2 = z^2\n$$' },
+      { type: 'question', label: 'Pregunta', color: '#facc15', attrs: 'type="choice" id="q-"', content: '¿Pregunta aqui?\n\n~ Opcion incorrecta # Retroalimentacion\n= Opcion correcta # Retroalimentacion\n~ Opcion incorrecta # Retroalimentacion' },
+      { type: 'mnemonic', label: 'Mnemotecnia', color: '#e879f9', content: '**Regla mnemotecnica aqui**\n- Elemento 1\n- Elemento 2' },
+      { type: 'history', label: 'Historia', color: '#d97757', attrs: 'title="" characters="" year=""', content: 'Contexto historico aqui.' },
+      { type: 'reference', label: 'Referencia', color: '#94a3b8', content: '- Autor A. *Titulo del libro*. Editorial; Año.\n- Autor B. *Otro libro*. Editorial; Año.' },
+      { type: 'math', label: 'Matematica', color: '#5eead4', content: 'v = v₀ + a·t\nx = x₀ + v₀·t + ½·a·t²' },
+      { type: 'include', label: 'Include visible', color: '#78716c', attrs: 'file="archivo.edm"', content: 'Texto del enlace al documento' },
+    ],
+  },
+  {
+    category: 'Condicional', items: [
+      { type: 'teacher-only', label: 'Solo profesor', color: '#dc2626', content: 'Contenido visible solo para el profesor.' },
+      { type: 'student-only', label: 'Solo estudiante', color: '#2563eb', content: 'Contenido visible solo para el estudiante.' },
     ],
   },
 ]
@@ -236,9 +244,9 @@ export function EditorToolbar({ getView }: EditorToolbarProps) {
     if (view) insertBlockText(view, text)
   }
 
-  const edmBlock = (type: string, content: string) => {
+  const edmBlock = (type: string, content: string, attrs = '') => {
     const view = getView()
-    if (view) insertEdmBlock(view, type, content)
+    if (view) insertEdmBlock(view, type, content, attrs)
     close()
   }
 
@@ -496,12 +504,12 @@ export function EditorToolbar({ getView }: EditorToolbarProps) {
               <p className="text-[10px] uppercase tracking-wider text-[var(--app-fg3)] px-3 pt-2 pb-1 font-medium">
                 {category}
               </p>
-              {items.map(({ type, label, color, content }) => (
+              {items.map(({ type, label, color, content, attrs }) => (
                 <button
                   key={type}
                   className="flex items-center gap-2 w-full px-3 py-1.5 text-left text-sm
                     text-[var(--app-fg1)] hover:bg-[var(--app-bg2)] transition-colors"
-                  onClick={() => edmBlock(type, content)}
+                  onClick={() => edmBlock(type, content, attrs)}
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import { X, FileCode, Copy, FileImage, FileText, Presentation, BookOpen } from 'lucide-react'
+import { X, FileCode, Copy, FileImage, FileText, Presentation, BookOpen, Code } from 'lucide-react'
+import { EmbedListModal } from './EmbedListModal'
 import { useUIStore } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
@@ -29,12 +30,16 @@ export function ExportModal() {
   const html = useDocumentStore((s) => s.html)
   const filename = useDocumentStore((s) => s.filename)
   const themeConfig = useThemeStore((s) => s.config)
+  const activePreset = useThemeStore((s) => s.activePreset)
   const contentMode = useContentModeStore((s) => s.contentMode)
   const slides = useContentModeStore((s) => s.slides)
   const slideConfig = useContentModeStore((s) => s.slideConfig)
   const pageConfig = useContentModeStore((s) => s.pageConfig)
   const bookLayout = useBookLayoutStore((s) => s.layoutConfig)
+  const sourceUrl = useDocumentStore((s) => s.sourceUrl)
+  const isProject = useDocumentStore((s) => s.isProject)
   const [inlineStyles, setInlineStyles] = useState(true)
+  const [embedListVariant, setEmbedListVariant] = useState<'embed' | 'app' | null>(null)
 
   // --- HTML mode handlers ---
   const handleHtml = useCallback(() => {
@@ -150,6 +155,42 @@ export function ExportModal() {
     setOpen(false)
   }, [html, pageConfig, filename, bookLayout, addToast, setOpen])
 
+  /** Builds the &theme= query param: preset name or base64-encoded config */
+  const themeParam = useCallback(() => {
+    if (activePreset) return `&theme=${activePreset}`
+    return `&theme=${btoa(JSON.stringify(themeConfig))}`
+  }, [activePreset, themeConfig])
+
+  const handleEmbedCode = useCallback(async () => {
+    if (isProject) {
+      setEmbedListVariant('embed')
+      return
+    }
+    if (!sourceUrl) return
+    const base = `${window.location.origin}${window.location.pathname}`
+    const encodedUrl = encodeURIComponent(sourceUrl)
+    const embedUrl = `${base}?url=${encodedUrl}&mode=embed${themeParam()}`
+    const snippet = `<iframe src="${embedUrl}" width="100%" height="600" frameborder="0" allowfullscreen style="border:none;border-radius:8px;"></iframe>`
+    await navigator.clipboard.writeText(snippet)
+    addToast('Codigo embed (solo lectura) copiado al portapapeles', 'success')
+    setOpen(false)
+  }, [sourceUrl, isProject, themeParam, addToast, setOpen])
+
+  const handleEmbedApp = useCallback(async () => {
+    if (isProject) {
+      setEmbedListVariant('app')
+      return
+    }
+    if (!sourceUrl) return
+    const base = `${window.location.origin}${window.location.pathname}`
+    const encodedUrl = encodeURIComponent(sourceUrl)
+    const appUrl = `${base}?url=${encodedUrl}${themeParam()}`
+    const snippet = `<iframe src="${appUrl}" width="100%" height="700" frameborder="0" allowfullscreen style="border:none;border-radius:8px;"></iframe>`
+    await navigator.clipboard.writeText(snippet)
+    addToast('Codigo embed (app completa) copiado al portapapeles', 'success')
+    setOpen(false)
+  }, [sourceUrl, isProject, themeParam, addToast, setOpen])
+
   const cards: ExportCard[] = useMemo(() => {
     switch (contentMode) {
       case 'presentation':
@@ -232,10 +273,30 @@ export function ExportModal() {
             color: 'text-blue-500',
             action: handleDocx,
           },
+          ...((sourceUrl || isProject) ? [
+            {
+              icon: Code as ExportCard['icon'],
+              title: 'Embed solo lectura',
+              desc: isProject
+                ? 'Embeds por capitulo — preview limpio'
+                : 'Iframe con el preview limpio — ideal para Moodle o web',
+              color: 'text-green-400',
+              action: handleEmbedCode,
+            },
+            {
+              icon: Code as ExportCard['icon'],
+              title: 'Embed app completa',
+              desc: isProject
+                ? 'Embeds por capitulo — app con editor y temas'
+                : 'Iframe con editor, temas y exportacion incluidos',
+              color: 'text-emerald-400',
+              action: handleEmbedApp,
+            },
+          ] : []),
         ]
     }
   }, [
-    contentMode, handleHtml, handleSnippet, handlePdf, handleDocx,
+    contentMode, handleHtml, handleSnippet, handlePdf, handleDocx, handleEmbedCode, handleEmbedApp, sourceUrl, isProject,
     handlePresentationHtml, handlePresentationPdf, handlePptxRaster, handlePptxNative,
     handleBookPdf, handleBookDocx,
   ])
@@ -307,6 +368,13 @@ export function ExportModal() {
           ))}
         </div>
       </div>
+
+      {/* Modal de embeds por capítulo (proyectos) */}
+      <EmbedListModal
+        open={embedListVariant !== null}
+        onClose={() => setEmbedListVariant(null)}
+        variant={embedListVariant ?? 'embed'}
+      />
     </div>
   )
 }

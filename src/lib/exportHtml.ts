@@ -34,7 +34,7 @@ function mermaidExportScript(theme: ThemeConfig): string {
     fontFamily: theme.bodyFont,
     fontSize: '14px',
   }
-  return `mermaid.initialize({startOnLoad:true,theme:'base',darkMode:${dark},themeVariables:${JSON.stringify(vars)},securityLevel:'loose'});`
+  return `mermaid.initialize({startOnLoad:true,theme:'base',darkMode:${dark},themeVariables:${JSON.stringify(vars)},securityLevel:'loose'});mermaid.run().then(()=>{document.querySelectorAll('.edm-diagram-render').forEach(el=>{const svg=el.querySelector('svg');if(!svg)return;const z=parseFloat(el.getAttribute('data-edm-zoom'))||1;const w=parseFloat(svg.getAttribute('width'))||svg.viewBox.baseVal.width||800;const h=parseFloat(svg.getAttribute('height'))||svg.viewBox.baseVal.height||600;const blob=new Blob([new XMLSerializer().serializeToString(svg)],{type:'image/svg+xml;charset=utf-8'});const url=URL.createObjectURL(blob);const img2=new Image();img2.onload=()=>{const c=document.createElement('canvas');c.width=w*2;c.height=h*2;const ctx=c.getContext('2d');ctx.scale(2,2);ctx.drawImage(img2,0,0,w,h);URL.revokeObjectURL(url);const png=document.createElement('img');png.src=c.toDataURL('image/png');png.alt='Mermaid diagram';png.width=w;png.height=h;png.style.display='block';png.style.margin='0 auto';png.style.width=z*100+'%';png.style.maxWidth=z*100+'%';png.style.height='auto';const wr=svg.closest('.edm-mermaid-rendered')||svg.parentElement;if(wr){wr.innerHTML='';wr.appendChild(png);}else{svg.replaceWith(png);}};img2.src=url;});});`
 }
 
 /**

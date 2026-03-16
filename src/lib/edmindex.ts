@@ -241,6 +241,48 @@ export function findEdmIndex(fileMap: Map<string, string>): [string, string] | n
   return null
 }
 
+/**
+ * Fetch a remote .edmindex and all its referenced .edm files.
+ * Assumes all files are in the same directory as the .edmindex URL.
+ * Returns the fileMap with all resolved content.
+ */
+export async function fetchEdmIndexFromUrl(
+  indexUrl: string,
+): Promise<{ indexSource: string; indexName: string; fileMap: Map<string, string> }> {
+  const res = await fetch(indexUrl)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const indexSource = await res.text()
+  const indexName = indexUrl.split('/').pop()?.split('?')[0] || 'index.edmindex'
+  const baseUrl = indexUrl.replace(/[^/]+$/, '')
+
+  // Parse all includes (recursive: fetch each, then check for nested includes)
+  const fileMap = new Map<string, string>()
+  const fetched = new Set<string>()
+
+  async function fetchFile(path: string): Promise<void> {
+    const base = baseName(path)
+    if (fetched.has(path) || fetched.has(base)) return
+    fetched.add(path)
+    fetched.add(base)
+
+    const fileUrl = baseUrl + path
+    const fileRes = await fetch(fileUrl)
+    if (!fileRes.ok) return // skip missing files
+    const content = await fileRes.text()
+    fileMap.set(path, content)
+    fileMap.set(base, content)
+
+    // Check for nested includes in the fetched file
+    const nested = parseAllIncludes(content)
+    await Promise.all(nested.map((p) => fetchFile(p)))
+  }
+
+  const includes = parseAllIncludes(indexSource)
+  await Promise.all(includes.map((p) => fetchFile(p)))
+
+  return { indexSource, indexName, fileMap }
+}
+
 /** Verifica si un archivo es un ZIP */
 export function isZipFile(file: File): boolean {
   return (

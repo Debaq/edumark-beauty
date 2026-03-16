@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
-import { Upload, FileText, FilePlus, Sparkles, Download, HelpCircle, FolderOpen, Archive } from 'lucide-react'
+import { Upload, FilePlus, Sparkles, Download, HelpCircle, FolderOpen, Archive, Globe } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useDocumentStore, extractTitle } from '@/store/document'
 import type { Chapter } from '@/store/document'
@@ -17,6 +17,7 @@ import {
   readFileList,
   readZipFile,
   findEdmIndex,
+  fetchEdmIndexFromUrl,
 } from '@/lib/edmindex'
 import { IncludeResolverModal } from './IncludeResolverModal'
 
@@ -292,9 +293,13 @@ export function Welcome() {
   )
 
   const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
+  const setSourceUrl = useDocumentStore((s) => s.setSourceUrl)
   const [skills, setSkills] = useState<GitHubFile[]>([])
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [loadingExample, setLoadingExample] = useState<string | null>(null)
+  const [urlInput, setUrlInput] = useState('')
+  const [urlLoading, setUrlLoading] = useState(false)
+  const [showUrlInput, setShowUrlInput] = useState(false)
 
   useEffect(() => {
     setSkillsLoading(true)
@@ -309,6 +314,31 @@ export function Welcome() {
       .catch(() => setSkills([]))
       .finally(() => setSkillsLoading(false))
   }, [])
+
+  const handleLoadFromUrl = useCallback(async () => {
+    const url = urlInput.trim()
+    if (!url) return
+    setUrlLoading(true)
+    try {
+      if (isEdmIndex(url)) {
+        // Fetch edmindex + all referenced files
+        const { indexSource, indexName, fileMap } = await fetchEdmIndexFromUrl(url)
+        setSourceUrl(url)
+        await loadEdmIndex(indexSource, indexName, fileMap)
+      } else {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const text = await res.text()
+        const name = url.split('/').pop()?.split('?')[0] || 'remote.edm'
+        await loadContent(text, name)
+        setSourceUrl(url)
+      }
+    } catch {
+      addToast('No se pudo cargar el archivo desde la URL', 'error')
+    } finally {
+      setUrlLoading(false)
+    }
+  }, [urlInput, loadContent, loadEdmIndex, setSourceUrl, addToast])
 
   const handleNewDocument = useCallback(() => {
     const template = '# New document\n\nStart writing here...\n'
@@ -342,9 +372,7 @@ export function Welcome() {
         {/* Logo / titulo */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-xl bg-[var(--app-accent)] flex items-center justify-center shadow-lg">
-              <FileText size={24} className="text-white" />
-            </div>
+            <img src={`${import.meta.env.BASE_URL}icon-192.webp`} alt="Edumark" className="w-12 h-12 rounded-xl shadow-lg" />
           </div>
           <h1 className="text-3xl font-bold text-[var(--app-fg)] mb-2">edumark-beauty</h1>
           <p className="text-sm text-[var(--app-fg2)]">
@@ -433,6 +461,42 @@ export function Welcome() {
             <Archive size={18} />
           </button>
         </div>
+
+        {/* Abrir desde URL */}
+        {!showUrlInput ? (
+          <button
+            onClick={() => setShowUrlInput(true)}
+            className="flex items-center justify-center gap-2 w-full px-6 py-3 rounded-xl
+              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
+              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
+              hover:text-[var(--app-accent)] transition-all"
+          >
+            <Globe size={18} />
+            Abrir desde URL
+          </button>
+        ) : (
+          <div className="flex gap-2 w-full">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLoadFromUrl()}
+              placeholder="https://ejemplo.com/archivo.edm"
+              autoFocus
+              className="flex-1 px-4 py-3 rounded-xl bg-[var(--app-bg1)] border border-[var(--app-border)]
+                text-sm text-[var(--app-fg)] placeholder:text-[var(--app-fg3)]
+                focus:border-[var(--app-accent)] focus:outline-none transition-all"
+            />
+            <button
+              onClick={handleLoadFromUrl}
+              disabled={urlLoading || !urlInput.trim()}
+              className="px-4 py-3 rounded-xl bg-[var(--app-accent)] text-white text-sm font-medium
+                hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-wait"
+            >
+              {urlLoading ? '...' : 'Cargar'}
+            </button>
+          </div>
+        )}
 
         {/* Separador */}
         <div className="flex items-center gap-3 w-full">

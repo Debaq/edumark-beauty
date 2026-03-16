@@ -61,6 +61,7 @@ export function insertEdmBlock(
   view: EditorView,
   type: string,
   defaultContent: string,
+  attrs = '',
 ) {
   const { from, to } = view.state.selection.main
   const selected = view.state.sliceDoc(from, to)
@@ -68,7 +69,7 @@ export function insertEdmBlock(
   const line = view.state.doc.lineAt(from)
   const isEmptyLine = line.text.trim() === '' && from === line.from
   const prefix = isEmptyLine ? '' : '\n\n'
-  const opening = `:::${type}`
+  const opening = attrs ? `:::${type} ${attrs}` : `:::${type}`
   const block = `${prefix}${opening}\n${content}\n:::\n`
   const contentStart = from + prefix.length + opening.length + 1
   const contentEnd = contentStart + content.length

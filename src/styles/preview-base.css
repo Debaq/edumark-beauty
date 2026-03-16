@@ -604,7 +604,6 @@
 /* ─── Diagramas ───────────────────────────────────── */
 .edm-preview .edm-diagram-render {
   text-align: center;
-  overflow: hidden;
 }
 
 .edm-preview .edm-diagram-render pre.mermaid {
@@ -615,15 +614,40 @@
 .edm-preview .edm-mermaid-rendered {
   text-align: center;
   background: transparent;
-  overflow: hidden;
 }
 
 .edm-preview .edm-diagram-render .edm-mermaid-rendered svg,
 .edm-preview .edm-mermaid-rendered svg {
-  max-width: 100% !important;
-  width: 100%;
+  display: block !important;
+  width: 100% !important;
   height: auto !important;
+  max-width: none !important;
   font-family: var(--t-body-font) !important;
+}
+
+.edm-preview .edm-mermaid-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+.edm-preview .edm-mermaid-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.edm-preview .edm-mermaid-scroll::-webkit-scrollbar-track {
+  background: var(--t-bg1);
+  border-radius: 3px;
+}
+
+.edm-preview .edm-mermaid-scroll::-webkit-scrollbar-thumb {
+  background: var(--t-fg3);
+  border-radius: 3px;
+}
+
+.edm-preview .edm-mermaid-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--t-fg2);
 }
 
 .edm-preview .edm-diagram-render pre.edm-mermaid-error,

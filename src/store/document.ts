@@ -29,6 +29,8 @@ interface DocumentStore {
   activeChapterIndex: number
   /** Source del .edmindex original */
   indexSource: string
+  /** URL remota del .edm (si se cargó desde URL) */
+  sourceUrl: string
   /** Source fusionado (todos los capítulos, para modo libro) */
   mergedSource: string
   /** HTML fusionado decodificado */
@@ -37,6 +39,7 @@ interface DocumentStore {
   setSource: (source: string) => void
   setFilename: (name: string) => void
   setHtml: (html: string) => void
+  setSourceUrl: (url: string) => void
 
   /** Carga un proyecto completo con capítulos */
   loadProject: (data: {
@@ -78,6 +81,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   source: '',
   filename: '',
   html: '',
+  sourceUrl: '',
   isProject: false,
   chapters: [],
   activeChapterIndex: 0,
@@ -88,6 +92,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   setSource: (source) => set({ source }),
   setFilename: (name) => set({ filename: name }),
   setHtml: (html) => set({ html }),
+  setSourceUrl: (url) => set({ sourceUrl: url }),
 
   loadProject: ({ filename, indexSource, chapters, mergedSource, mergedHtml }) => {
     const first = chapters[0]
@@ -199,6 +204,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       source: '',
       filename: '',
       html: '',
+      sourceUrl: '',
       isProject: false,
       chapters: [],
       activeChapterIndex: 0,

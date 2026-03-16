@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   PanelLeftClose, PanelRightClose, Columns2,
-  Download, Save, Settings, FileText, RotateCcw, HelpCircle,
+  Download, Save, Settings, RotateCcw, HelpCircle,
   Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
 import { saveAs } from 'file-saver'
@@ -97,7 +97,7 @@ export function Toolbar() {
       {/* Izquierda: logo + nombre de archivo + selector de capítulo */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <FileText size={18} className="text-[var(--app-accent)]" />
+          <img src={`${import.meta.env.BASE_URL}icon-192.webp`} alt="Edumark" className="w-5 h-5" />
           <span className="text-sm font-semibold text-[var(--app-fg)]">edumark-beauty</span>
         </div>
         {filename && (

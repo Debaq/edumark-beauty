@@ -41,9 +41,47 @@ function themeKey(t: ThemeConfig): string {
 }
 
 let mermaidIdCounter = 0
+const RASTER_SCALE = 2 // 2x for retina quality
+
+/**
+ * Rasterizes an SVG string to a PNG data URL via an offscreen canvas.
+ * Returns { dataUrl, width, height } where width/height are the natural (1x) dimensions.
+ */
+function rasterizeSvg(svgString: string): Promise<{ dataUrl: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    // Parse width/height from the SVG
+    const wMatch = svgString.match(/width="([\d.]+)"/)
+    const hMatch = svgString.match(/height="([\d.]+)"/)
+    const width = wMatch ? parseFloat(wMatch[1]) : 800
+    const height = hMatch ? parseFloat(hMatch[1]) : 600
+
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width * RASTER_SCALE
+      canvas.height = height * RASTER_SCALE
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(RASTER_SCALE, RASTER_SCALE)
+      ctx.drawImage(img, 0, 0, width, height)
+      URL.revokeObjectURL(url)
+      resolve({ dataUrl: canvas.toDataURL('image/png'), width, height })
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load SVG for rasterization'))
+    }
+
+    img.src = url
+  })
+}
 
 /**
  * Hook que renderiza bloques `<pre class="mermaid">` dentro de un contenedor.
+ * Rasteriza el SVG a PNG para control total del tamaño.
  * Re-renderiza cuando cambia el HTML o los colores del tema.
  */
 export function useMermaid(
@@ -80,7 +118,9 @@ export function useMermaid(
     }
 
     const pres = container.querySelectorAll<HTMLPreElement>('pre.mermaid')
-    if (pres.length === 0) return
+    const krokiSvgs = container.querySelectorAll<SVGSVGElement>('.edm-diagram-render > .edm-mermaid-rendered > svg')
+
+    if (pres.length === 0 && krokiSvgs.length === 0) return
 
     const dark = isDark(theme.bg)
 
@@ -93,51 +133,85 @@ export function useMermaid(
       securityLevel: 'loose',
     })
 
-    // Renderizar cada bloque individualmente para control total
+    /** Build the rasterized img wrapped in a scrollable container if needed */
+    function buildDiagramImg(
+      dataUrl: string, width: number, height: number,
+      zoom: number, containerWidth: number,
+    ): HTMLElement {
+      const img = document.createElement('img')
+      img.src = dataUrl
+      img.alt = 'Mermaid diagram'
+      img.width = width
+      img.height = height
+      img.style.display = 'block'
+      img.style.height = 'auto'
+
+      const effectiveWidth = width * zoom
+      // If diagram fits in container, scale to fill; otherwise show at natural size with scroll
+      if (effectiveWidth <= containerWidth) {
+        img.style.width = `${zoom * 100}%`
+        img.style.maxWidth = `${zoom * 100}%`
+        img.style.margin = '0 auto'
+        return img
+      } else {
+        // Scrollable container for wide diagrams
+        img.style.width = `${effectiveWidth}px`
+        img.style.maxWidth = 'none'
+        const scroller = document.createElement('div')
+        scroller.className = 'edm-mermaid-scroll'
+        scroller.appendChild(img)
+        return scroller
+      }
+    }
+
     const render = async () => {
+      const containerWidth = container.clientWidth || 800
+
+      // 1. Rasterize SVGs already rendered by Kroki
+      for (const svgEl of krokiSvgs) {
+        const wrapper = svgEl.parentElement
+        if (!wrapper || wrapper.hasAttribute('data-mermaid-src')) continue
+        const diagramRender = wrapper.closest('.edm-diagram-render')
+        const zoomVal = diagramRender?.getAttribute('data-edm-zoom')
+        const zoom = zoomVal ? parseFloat(zoomVal) : 1
+        wrapper.setAttribute('data-mermaid-src', '__kroki__')
+        try {
+          const svgString = new XMLSerializer().serializeToString(svgEl)
+          const { dataUrl, width, height } = await rasterizeSvg(svgString)
+          const content = buildDiagramImg(dataUrl, width, height, zoom, containerWidth)
+          wrapper.innerHTML = ''
+          wrapper.appendChild(content)
+        } catch { /* leave SVG as-is */ }
+      }
+
+      // 2. Render <pre class="mermaid"> blocks (not processed by Kroki)
       for (const pre of pres) {
         const raw = pre.textContent?.trim()
         if (!raw) continue
 
-        // Convertir \n literal a <br/> para que Mermaid renderice saltos de línea
         const code = raw.replace(/\\n/g, '<br/>')
         const id = `edm-mermaid-${++mermaidIdCounter}`
-        // Leer zoom ANTES de reemplazar el pre
-          const diagramRender = pre.closest('.edm-diagram-render')
-          const zoomVal = diagramRender?.getAttribute('data-edm-zoom')
-          const zoom = zoomVal ? parseFloat(zoomVal) : 0
+        const diagramRender = pre.closest('.edm-diagram-render')
+        const zoomVal = diagramRender?.getAttribute('data-edm-zoom')
+        const zoom = zoomVal ? parseFloat(zoomVal) : 1
 
-          try {
+        try {
           const { svg } = await mermaid.render(id, code)
+          const { dataUrl, width, height } = await rasterizeSvg(svg)
+
           const wrapper = document.createElement('div')
           wrapper.className = 'edm-mermaid-rendered'
           wrapper.setAttribute('data-mermaid-src', raw)
-          wrapper.innerHTML = svg
-          // Quitar width/height fijos del SVG para que CSS controle el tamaño
-          const svgEl = wrapper.querySelector('svg')
-          if (svgEl) {
-            svgEl.removeAttribute('width')
-            svgEl.style.height = 'auto'
-            if (zoom > 0 && zoom !== 1) {
-              svgEl.style.setProperty('width', `${zoom * 100}%`, 'important')
-              svgEl.style.setProperty('max-width', `${zoom * 100}%`, 'important')
-              if (zoom > 1 && diagramRender) {
-                ;(diagramRender as HTMLElement).style.overflow = 'auto'
-              }
-            } else {
-              svgEl.style.maxWidth = '100%'
-              svgEl.style.width = '100%'
-            }
-          }
+
+          const content = buildDiagramImg(dataUrl, width, height, zoom, containerWidth)
+          wrapper.appendChild(content)
           pre.replaceWith(wrapper)
         } catch {
-          // En caso de error de sintaxis, dejar el <pre> como está
           pre.classList.add('edm-mermaid-error')
         }
       }
     }
 
-    // Dar tiempo a que el DOM se pinte tras dangerouslySetInnerHTML
     const timer = setTimeout(render, 50)
     return () => clearTimeout(timer)
   }, [containerRef, html, theme])
