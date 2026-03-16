@@ -30,7 +30,7 @@ interface ContentModeStore {
   prevSlide: () => void
 }
 
-export const useContentModeStore = create<ContentModeStore>((set) => ({
+export const useContentModeStore = create<ContentModeStore>((set, get) => ({
   contentMode: 'html',
   pageConfig: {
     paperSize: 'a4',
@@ -46,8 +46,19 @@ export const useContentModeStore = create<ContentModeStore>((set) => ({
   slideZoomOverrides: new Map(),
 
   setContentMode: (mode) => {
+    const prev = get().contentMode
     set({ contentMode: mode, currentSlide: 0 })
     useThemeStore.getState().switchMode(mode)
+
+    // En proyecto: cambiar entre vista de capítulo y fusionada
+    const doc = useDocumentStore.getState()
+    if (doc.isProject) {
+      if (mode === 'book' && prev !== 'book') {
+        doc.switchToMerged()
+      } else if (mode !== 'book' && prev === 'book') {
+        doc.switchToChapter()
+      }
+    }
   },
   setPageConfig: (config) => set({ pageConfig: config }),
   setSlideConfig: (config) => set({ slideConfig: config }),

@@ -11,6 +11,7 @@ import { generateThemeCss } from './previewTheme'
 import { useSlides } from '@/hooks/useSlides'
 import { SlideTemplateSelector } from './SlideTemplateSelector'
 import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
+import { useMermaid } from '@/hooks/useMermaid'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
 import '@/styles/presentation.css'
@@ -56,6 +57,9 @@ export function PresentationPreview() {
 
   // Interactividad de preguntas
   useQuestionInteractivity(containerRef, slide?.html ?? '')
+
+  // Renderizar diagramas Mermaid
+  useMermaid(containerRef, slide?.html ?? '', themeConfig)
 
   // ── Auto-fit system ──
   const [autoScale, setAutoScale] = useState(1)

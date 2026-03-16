@@ -86,6 +86,14 @@ export async function exportBookPdf(
   // Book PDF: expand all <details> so solutions are visible in print
   previewEl.querySelectorAll('details:not([open])').forEach((d) => d.setAttribute('open', ''))
 
+  // Calcular números de página para :::include links
+  fillIncludePageNumbers(
+    previewEl as HTMLElement,
+    pageConfig.height,
+    pageConfig.margins.top,
+    pageConfig.margins.bottom,
+  )
+
   await html2pdf()
     .set({
       margin: [
@@ -107,4 +115,31 @@ export async function exportBookPdf(
     .save()
 
   document.body.removeChild(container)
+}
+
+/**
+ * Llena los spans .edm-include-page con el número de página estimado
+ * del elemento target, basándose en la posición Y en el DOM offscreen.
+ */
+function fillIncludePageNumbers(
+  root: HTMLElement,
+  pageHeightMm: number,
+  marginTopMm: number,
+  marginBottomMm: number,
+): void {
+  const MM_TO_PX = 96 / 25.4 // 3.7795...
+  const contentHeightPx = (pageHeightMm - marginTopMm - marginBottomMm) * MM_TO_PX
+
+  if (contentHeightPx <= 0) return
+
+  const pageSpans = root.querySelectorAll<HTMLElement>('.edm-include-page[data-target]')
+  for (const span of pageSpans) {
+    const targetId = span.getAttribute('data-target')!
+    const target = root.querySelector(`#${CSS.escape(targetId)}`)
+    if (target) {
+      const el = target as HTMLElement
+      const page = Math.floor(el.offsetTop / contentHeightPx) + 1
+      span.textContent = `p. ${page}`
+    }
+  }
 }

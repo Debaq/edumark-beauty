@@ -3,12 +3,47 @@ import { generateThemeCss } from '@/components/preview/previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityScript, interactivityCss } from '@/lib/interactivity'
 
+/** Decide si un color hex es oscuro */
+function isDarkColor(hex: string): boolean {
+  const c = hex.replace('#', '')
+  const r = parseInt(c.slice(0, 2), 16) / 255
+  const g = parseInt(c.slice(2, 4), 16) / 255
+  const b = parseInt(c.slice(4, 6), 16) / 255
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5
+}
+
+/** Genera el script de Mermaid para HTML exportado */
+function mermaidExportScript(theme: ThemeConfig): string {
+  const dark = isDarkColor(theme.bg)
+  const vars = {
+    primaryColor: dark ? theme.accent + '30' : theme.accent + '18',
+    primaryTextColor: theme.fg,
+    primaryBorderColor: theme.accentBorder,
+    lineColor: theme.fg2,
+    secondaryColor: dark ? theme.blue + '25' : theme.blue + '14',
+    tertiaryColor: dark ? theme.green + '25' : theme.green + '14',
+    background: 'transparent',
+    mainBkg: theme.bg1,
+    textColor: theme.fg,
+    nodeBorder: theme.border,
+    clusterBkg: theme.bg2,
+    clusterBorder: theme.border,
+    titleColor: theme.fg,
+    edgeLabelBackground: theme.bg,
+    nodeTextColor: theme.fg,
+    fontFamily: theme.bodyFont,
+    fontSize: '14px',
+  }
+  return `mermaid.initialize({startOnLoad:true,theme:'base',darkMode:${dark},themeVariables:${JSON.stringify(vars)},securityLevel:'loose'});`
+}
+
 /**
  * Genera un archivo HTML completo y autocontenido
  * con todo el CSS inlined y listo para abrir en cualquier navegador.
  */
 export function exportFullHtml(html: string, theme: ThemeConfig, title: string): string {
   const themeCssVars = generateThemeCss(theme)
+  const hasMermaid = html.includes('class="mermaid"')
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -38,7 +73,7 @@ export function exportFullHtml(html: string, theme: ThemeConfig, title: string):
   <div class="edm-preview">
     ${html}
   </div>
-  <script>${interactivityScript}</script>
+  <script>${interactivityScript}</script>${hasMermaid ? `\n  <script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';${mermaidExportScript(theme)}</script>` : ''}
 </body>
 </html>`
 }

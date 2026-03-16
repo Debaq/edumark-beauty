@@ -1,7 +1,8 @@
+import { useState, useRef, useEffect } from 'react'
 import {
   PanelLeftClose, PanelRightClose, Columns2,
   Download, Settings, FileText, RotateCcw, HelpCircle,
-  Monitor, Presentation, BookOpen, Sparkles,
+  Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
@@ -30,14 +31,33 @@ export function Toolbar() {
   const setHelpModalOpen = useUIStore((s) => s.setHelpModalOpen)
   const setSkillsModalOpen = useUIStore((s) => s.setSkillsModalOpen)
   const filename = useDocumentStore((s) => s.filename)
+  const isProject = useDocumentStore((s) => s.isProject)
+  const chapters = useDocumentStore((s) => s.chapters)
+  const activeChapterIndex = useDocumentStore((s) => s.activeChapterIndex)
+  const setActiveChapter = useDocumentStore((s) => s.setActiveChapter)
   const reset = useDocumentStore((s) => s.reset)
   const contentMode = useContentModeStore((s) => s.contentMode)
   const setContentMode = useContentModeStore((s) => s.setContentMode)
 
+  const [chapterDropdownOpen, setChapterDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    if (!chapterDropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setChapterDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [chapterDropdownOpen])
+
   return (
     <header className="h-12 bg-[var(--app-bg1)] border-b border-[var(--app-border)]
       flex items-center justify-between px-4 shrink-0">
-      {/* Izquierda: logo + nombre de archivo */}
+      {/* Izquierda: logo + nombre de archivo + selector de capítulo */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <FileText size={18} className="text-[var(--app-accent)]" />
@@ -47,6 +67,44 @@ export function Toolbar() {
           <>
             <span className="text-[var(--app-fg3)]">/</span>
             <span className="text-xs text-[var(--app-fg2)]">{filename}</span>
+          </>
+        )}
+        {isProject && chapters.length > 1 && contentMode !== 'book' && (
+          <>
+            <span className="text-[var(--app-fg3)]">/</span>
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setChapterDropdownOpen(!chapterDropdownOpen)}
+                className="flex items-center gap-1 text-xs text-[var(--app-fg1)] hover:text-[var(--app-accent)]
+                  transition-colors px-2 py-1 rounded-md hover:bg-[var(--app-bg2)]"
+              >
+                <span className="max-w-[200px] truncate">{chapters[activeChapterIndex]?.title}</span>
+                <ChevronDown size={12} className={clsx('transition-transform', chapterDropdownOpen && 'rotate-180')} />
+              </button>
+              {chapterDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 min-w-[240px] max-h-[320px] overflow-y-auto
+                  bg-[var(--app-bg1)] border border-[var(--app-border)] rounded-lg shadow-lg z-50 py-1">
+                  {chapters.map((ch, i) => (
+                    <button
+                      key={ch.path}
+                      onClick={() => {
+                        setActiveChapter(i)
+                        setChapterDropdownOpen(false)
+                      }}
+                      className={clsx(
+                        'w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2',
+                        i === activeChapterIndex
+                          ? 'bg-[var(--app-accent)]/10 text-[var(--app-accent)]'
+                          : 'text-[var(--app-fg2)] hover:bg-[var(--app-bg2)] hover:text-[var(--app-fg1)]'
+                      )}
+                    >
+                      <span className="text-[var(--app-fg3)] w-4 text-right shrink-0">{i + 1}</span>
+                      <span className="truncate">{ch.title}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

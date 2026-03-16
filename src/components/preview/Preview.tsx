@@ -2,6 +2,8 @@ import { useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
+import { useMermaid } from '@/hooks/useMermaid'
+import { useIncludeLinks } from '@/hooks/useIncludeLinks'
 import { generateThemeCss } from './previewTheme'
 import previewBaseCss from '@/styles/preview-base.css?raw'
 import { interactivityCss } from '@/lib/interactivity'
@@ -25,6 +27,12 @@ export const Preview = forwardRef<PreviewHandle>(function Preview(_, ref) {
 
   // Interactividad de preguntas
   useQuestionInteractivity(containerRef, html)
+
+  // Renderizar diagramas Mermaid
+  useMermaid(containerRef, html, themeConfig)
+
+  // Navegar a capítulos al hacer clic en :::include links
+  useIncludeLinks(containerRef, html)
 
   if (!html) {
     return (

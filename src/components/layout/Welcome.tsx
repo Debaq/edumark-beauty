@@ -1,10 +1,24 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
-import { Upload, FileText, FilePlus, Sparkles, Download, HelpCircle } from 'lucide-react'
+import { Upload, FileText, FilePlus, Sparkles, Download, HelpCircle, FolderOpen, Archive } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useDocumentStore } from '@/store/document'
+import { useDocumentStore, extractTitle } from '@/store/document'
+import type { Chapter } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
 import { useUIStore } from '@/store/ui'
 import { decodeAsync } from 'edumark-js'
+import {
+  isEdmIndex,
+  isZipFile,
+  resolveEdmIndex,
+  parseIncludes,
+  parseAllIncludes,
+  findMissingRecursive,
+  readDirectoryEntries,
+  readFileList,
+  readZipFile,
+  findEdmIndex,
+} from '@/lib/edmindex'
+import { IncludeResolverModal } from './IncludeResolverModal'
 
 const EXAMPLES_BASE_URL = 'https://raw.githubusercontent.com/Debaq/edumark/main/ejemplos/'
 const SKILLS_API_URL = 'https://api.github.com/repos/Debaq/edumark/contents/llms'
@@ -20,17 +34,34 @@ interface GitHubFile {
   download_url: string
 }
 
+/** Estado pendiente del modal de includes */
+interface PendingIndex {
+  indexSource: string
+  indexFilename: string
+  requiredFiles: string[]
+  /** Archivos ya cargados de pasadas anteriores del modal (resolución recursiva) */
+  initialFileMap?: Map<string, string>
+}
+
 export function Welcome() {
   const setSource = useDocumentStore((s) => s.setSource)
   const setFilename = useDocumentStore((s) => s.setFilename)
   const setHtml = useDocumentStore((s) => s.setHtml)
+  const loadProject = useDocumentStore((s) => s.loadProject)
+  const addToast = useUIStore((s) => s.addToast)
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const zipInputRef = useRef<HTMLInputElement>(null)
 
+  // Estado para el modal de resolución de includes
+  const [pendingIndex, setPendingIndex] = useState<PendingIndex | null>(null)
+
+  /** Carga un .edm individual (no proyecto) */
   const loadContent = useCallback(
     async (text: string, name: string) => {
-      // Aplicar tema embebido en el documento (si existe)
       useThemeStore.getState().loadThemeFromSource(text)
+      useDocumentStore.getState().reset()
       setSource(text)
       setFilename(name)
       try {
@@ -42,23 +73,187 @@ export function Welcome() {
     [setSource, setFilename, setHtml]
   )
 
-  const handleFile = useCallback(
-    (file: File) => {
-      const reader = new FileReader()
-      reader.onload = () => loadContent(reader.result as string, file.name)
-      reader.readAsText(file)
+  /** Carga un .edmindex como proyecto con capítulos individuales */
+  const loadEdmIndex = useCallback(
+    async (indexSource: string, indexName: string, fileMap: Map<string, string>) => {
+      // Todos los includes (en orden de aparición) para capítulos
+      const allIncludes = parseAllIncludes(indexSource)
+      // Solo @include() para resolución/inlining en merged
+      const { resolved, missing } = resolveEdmIndex(indexSource, fileMap)
+
+      if (missing.length > 0) {
+        addToast(`${missing.length} archivo(s) no encontrado(s): ${missing.join(', ')}`, 'error')
+      }
+
+      // Construir capítulos de TODOS los tipos de include (en orden del source)
+      const chapters: Chapter[] = []
+      for (const path of allIncludes) {
+        const baseName = path.split('/').pop() ?? path
+        const content = fileMap.get(path) ?? fileMap.get(baseName)
+        if (content != null) {
+          let html: string
+          try {
+            html = await decodeAsync(content, { mode: 'teacher' })
+          } catch {
+            html = '<p style="color:#f87171;">Error al parsear este capitulo.</p>'
+          }
+          chapters.push({
+            path,
+            title: extractTitle(content, path),
+            source: content,
+            html,
+          })
+        }
+      }
+
+      // Decodificar versión fusionada (para modo libro)
+      let mergedHtml: string
+      try {
+        mergedHtml = await decodeAsync(resolved, { mode: 'teacher' })
+      } catch {
+        mergedHtml = '<p style="color:#f87171;">Error al parsear el documento fusionado.</p>'
+      }
+
+      // Aplicar tema del índice
+      useThemeStore.getState().loadThemeFromSource(resolved)
+
+      loadProject({
+        filename: indexName,
+        indexSource,
+        chapters,
+        mergedSource: resolved,
+        mergedHtml,
+      })
     },
-    [loadContent]
+    [loadProject, addToast]
   )
 
+  /** Procesa un fileMap completo (de carpeta, ZIP, etc.) */
+  const processFileMap = useCallback(
+    async (fileMap: Map<string, string>) => {
+      const index = findEdmIndex(fileMap)
+      if (index) {
+        const [indexName, indexSource] = index
+        await loadEdmIndex(indexSource, indexName, fileMap)
+      } else {
+        // Sin .edmindex: buscar primer .edm
+        for (const [name, content] of fileMap) {
+          if (name.endsWith('.edm')) {
+            await loadContent(content, name)
+            return
+          }
+        }
+        addToast('No se encontro un archivo .edmindex ni .edm', 'error')
+      }
+    },
+    [loadEdmIndex, loadContent, addToast]
+  )
+
+  /** Maneja un archivo individual */
+  const handleFile = useCallback(
+    async (file: File) => {
+      // ZIP
+      if (isZipFile(file)) {
+        try {
+          const fileMap = await readZipFile(file)
+          await processFileMap(fileMap)
+        } catch {
+          addToast('Error al leer el archivo ZIP', 'error')
+        }
+        return
+      }
+
+      // .edmindex suelto → extraer TODOS los includes y abrir modal
+      if (isEdmIndex(file.name)) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const text = reader.result as string
+          const required = parseAllIncludes(text)
+
+          if (required.length > 0) {
+            // Abrir modal para que el usuario suba los archivos
+            setPendingIndex({
+              indexSource: text,
+              indexFilename: file.name,
+              requiredFiles: required,
+            })
+          } else {
+            // .edmindex sin ningún tipo de include → error
+            addToast('El .edmindex no contiene referencias @include ni :::include', 'error')
+          }
+        }
+        reader.readAsText(file)
+        return
+      }
+
+      // Archivo .edm/.md/.txt normal
+      const reader = new FileReader()
+      reader.onload = () => {
+        loadContent(reader.result as string, file.name)
+      }
+      reader.readAsText(file)
+    },
+    [loadContent, processFileMap, addToast]
+  )
+
+  /** Callback del modal: el usuario terminó de subir archivos */
+  const handleIncludeResolve = useCallback(
+    async (fileMap: Map<string, string>) => {
+      if (!pendingIndex) return
+
+      // Fusionar con archivos de pasadas anteriores
+      const mergedMap = new Map<string, string>()
+      if (pendingIndex.initialFileMap) {
+        for (const [k, v] of pendingIndex.initialFileMap) mergedMap.set(k, v)
+      }
+      for (const [k, v] of fileMap) mergedMap.set(k, v)
+
+      // Buscar dependencias transitivas en los archivos recién cargados
+      const missing = findMissingRecursive(pendingIndex.indexSource, mergedMap)
+
+      if (missing.length > 0) {
+        // Faltan archivos → extender modal con las nuevas dependencias
+        setPendingIndex({
+          indexSource: pendingIndex.indexSource,
+          indexFilename: pendingIndex.indexFilename,
+          requiredFiles: [...new Set([...pendingIndex.requiredFiles, ...missing])],
+          initialFileMap: mergedMap,
+        })
+        return
+      }
+
+      setPendingIndex(null)
+      await loadEdmIndex(pendingIndex.indexSource, pendingIndex.indexFilename, mergedMap)
+    },
+    [pendingIndex, loadEdmIndex]
+  )
+
+  /** Maneja el drop de carpetas o archivos */
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault()
       setIsDragOver(false)
+
+      const items = e.dataTransfer.items
+      if (!items || items.length === 0) {
+        const file = e.dataTransfer.files[0]
+        if (file) handleFile(file)
+        return
+      }
+
+      // Verificar si es una carpeta
+      const firstEntry = items[0].webkitGetAsEntry?.()
+      if (firstEntry?.isDirectory) {
+        const fileMap = await readDirectoryEntries(firstEntry as FileSystemDirectoryEntry)
+        await processFileMap(fileMap)
+        return
+      }
+
+      // Es un archivo suelto
       const file = e.dataTransfer.files[0]
       if (file) handleFile(file)
     },
-    [handleFile]
+    [handleFile, processFileMap]
   )
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -69,6 +264,26 @@ export function Welcome() {
   const handleDragLeave = useCallback(() => setIsDragOver(false), [])
 
   const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (file) handleFile(file)
+    },
+    [handleFile]
+  )
+
+  /** Maneja la selección de carpeta via input[webkitdirectory] */
+  const handleFolderInput = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || files.length === 0) return
+      const fileMap = await readFileList(files)
+      await processFileMap(fileMap)
+    },
+    [processFileMap]
+  )
+
+  /** Maneja input de ZIP */
+  const handleZipInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (file) handleFile(file)
@@ -155,10 +370,10 @@ export function Welcome() {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-[var(--app-fg1)]">
-              Arrastra un archivo .edm aqui
+              Arrastra un archivo, carpeta o ZIP aqui
             </p>
             <p className="text-xs text-[var(--app-fg3)] mt-1">
-              o haz clic para seleccionar
+              .edm, .edmindex, .zip — o haz clic para seleccionar
             </p>
           </div>
         </div>
@@ -166,21 +381,58 @@ export function Welcome() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".edm,.md,.txt"
+          accept=".edm,.edmindex,.zip,.md,.txt"
           onChange={handleFileInput}
           className="hidden"
         />
+        <input
+          ref={folderInputRef}
+          type="file"
+          // @ts-expect-error webkitdirectory is a non-standard attribute
+          webkitdirectory=""
+          onChange={handleFolderInput}
+          className="hidden"
+        />
+        <input
+          ref={zipInputRef}
+          type="file"
+          accept=".zip"
+          onChange={handleZipInput}
+          className="hidden"
+        />
 
-        {/* Nuevo documento */}
-        <button
-          onClick={handleNewDocument}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl
-            bg-[var(--app-accent)] text-white text-sm font-medium
-            hover:opacity-90 transition-all"
-        >
-          <FilePlus size={18} />
-          Nuevo documento
-        </button>
+        {/* Botones principales */}
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={handleNewDocument}
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl
+              bg-[var(--app-accent)] text-white text-sm font-medium
+              hover:opacity-90 transition-all"
+          >
+            <FilePlus size={18} />
+            Nuevo documento
+          </button>
+          <button
+            onClick={() => folderInputRef.current?.click()}
+            title="Abrir carpeta con .edmindex"
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
+              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
+              hover:text-[var(--app-accent)] transition-all"
+          >
+            <FolderOpen size={18} />
+          </button>
+          <button
+            onClick={() => zipInputRef.current?.click()}
+            title="Abrir archivo .zip"
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+              bg-[var(--app-bg1)] border border-[var(--app-border)] text-sm font-medium
+              text-[var(--app-fg1)] hover:border-[var(--app-accent)]
+              hover:text-[var(--app-accent)] transition-all"
+          >
+            <Archive size={18} />
+          </button>
+        </div>
 
         {/* Separador */}
         <div className="flex items-center gap-3 w-full">
@@ -250,6 +502,18 @@ export function Welcome() {
           ¿Que es Edumark?
         </button>
       </div>
+
+      {/* Modal de resolución de includes */}
+      {pendingIndex && (
+        <IncludeResolverModal
+          key={pendingIndex.requiredFiles.join(',')}
+          indexFilename={pendingIndex.indexFilename}
+          requiredFiles={pendingIndex.requiredFiles}
+          initialFileMap={pendingIndex.initialFileMap}
+          onResolve={handleIncludeResolve}
+          onCancel={() => setPendingIndex(null)}
+        />
+      )}
     </div>
   )
 }

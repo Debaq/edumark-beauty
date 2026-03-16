@@ -13,6 +13,7 @@ import { useThemeStore } from '@/store/theme'
 import { useBookLayoutStore } from '@/store/bookLayout'
 import { useBookPagination } from '@/hooks/useBookPagination'
 import { useQuestionInteractivity } from '@/hooks/useQuestionInteractivity'
+import { useMermaid } from '@/hooks/useMermaid'
 import { generateThemeCss } from './previewTheme'
 import { BookPage } from './book/BookPage'
 import { BookToolbar } from './book/BookToolbar'
@@ -79,6 +80,9 @@ export function BookPreview() {
   // Interactividad de preguntas
   const bookContainerRef = useRef<HTMLDivElement>(null)
   useQuestionInteractivity(bookContainerRef, html)
+
+  // Renderizar diagramas Mermaid
+  useMermaid(bookContainerRef, html, themeConfig)
 
   // ── Zoom ──
   const scrollAreaRef = useRef<HTMLDivElement>(null)

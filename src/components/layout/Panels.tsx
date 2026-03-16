@@ -7,6 +7,7 @@ import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PreviewRouter } from '@/components/preview/PreviewRouter'
 import { SvgEditorPanel } from '@/components/svg-editor/SvgEditorPanel'
+import { ProjectChapterBar } from '@/components/layout/ProjectChapterBar'
 import type { PreviewHandle } from '@/components/preview/Preview'
 import { findSlideBoundaries } from '@/lib/slideParser'
 
@@ -324,6 +325,7 @@ export function Panels() {
   if (viewMode === 'editor') {
     return (
       <div className="flex-1 overflow-hidden flex flex-col">
+        <ProjectChapterBar />
         <EditorToolbar getView={() => editorRef.current?.getView() ?? null} />
         <div className="flex-1 overflow-hidden">
           <EdmEditor ref={editorRef} />
@@ -334,15 +336,20 @@ export function Panels() {
 
   if (viewMode === 'preview') {
     return (
-      <div className="flex-1 overflow-hidden">
-        {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter />}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <ProjectChapterBar />
+        <div className="flex-1 overflow-hidden">
+          {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter />}
+        </div>
       </div>
     )
   }
 
   // Split
   return (
-    <div ref={containerRef} className="flex-1 flex overflow-hidden">
+    <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden">
+      <ProjectChapterBar />
+      <div className="flex-1 flex overflow-hidden">
       <div className="overflow-hidden flex flex-col" style={{ width: `${splitPercent}%` }}>
         <EditorToolbar getView={() => editorRef.current?.getView() ?? null} />
         <div className="flex-1 overflow-hidden">
@@ -368,6 +375,7 @@ export function Panels() {
 
       <div className="overflow-hidden" style={{ width: `${100 - splitPercent}%` }}>
         {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter ref={previewRef} />}
+      </div>
       </div>
     </div>
   )
