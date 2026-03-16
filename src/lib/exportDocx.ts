@@ -1,4 +1,4 @@
-import { saveAs } from 'file-saver'
+import { saveFile } from '@/lib/fileAdapter'
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   AlignmentType, LevelFormat, UnderlineType,
@@ -119,7 +119,7 @@ export async function exportDocx(html: string, filename: string): Promise<void> 
   })
 
   const blob = await Packer.toBlob(document)
-  saveAs(blob, filename.replace(/\.edm$/, '') + '.docx')
+  await saveFile(blob, filename.replace(/\.edm$/, '') + '.docx')
 }
 
 /** Parse inline elements (bold, italic, code) from a DOM node */

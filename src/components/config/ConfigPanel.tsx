@@ -82,15 +82,11 @@ export function ConfigPanel() {
   )
 
   // Exportar como JSON
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     const data = exportTheme()
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'edumark-theme.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    const { saveFile } = await import('@/lib/fileAdapter')
+    await saveFile(blob, 'edumark-theme.json')
     addToast('Tema exportado correctamente', 'success')
   }, [exportTheme, addToast])
 

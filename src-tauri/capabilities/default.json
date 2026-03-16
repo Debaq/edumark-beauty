@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/tauri/dev/crates/tauri-utils/schema/capability.json",
+  "identifier": "default",
+  "description": "Default capabilities for Edumark Beauty",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "shell:allow-open"
+  ]
+}

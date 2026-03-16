@@ -1,4 +1,4 @@
-import { saveAs } from 'file-saver'
+import { saveFile } from '@/lib/fileAdapter'
 import type { PageConfig } from '@/types/contentMode'
 import type { BookLayoutConfig } from '@/types/bookLayout'
 import {
@@ -97,7 +97,7 @@ export async function exportBookDocx(
     })
 
     const blob = await Packer.toBlob(document)
-    saveAs(blob, filename.replace(/\.edm$/, '') + '_libro.docx')
+    await saveFile(blob, filename.replace(/\.edm$/, '') + '_libro.docx')
   } else {
     // Default: sequential flow
     const children: Paragraph[] = []
@@ -130,7 +130,7 @@ export async function exportBookDocx(
     })
 
     const blob = await Packer.toBlob(document)
-    saveAs(blob, filename.replace(/\.edm$/, '') + '_libro.docx')
+    await saveFile(blob, filename.replace(/\.edm$/, '') + '_libro.docx')
   }
 }
 

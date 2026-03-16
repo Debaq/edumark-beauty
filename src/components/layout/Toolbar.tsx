@@ -4,7 +4,7 @@ import {
   Download, Save, Settings, RotateCcw, HelpCircle,
   Monitor, Presentation, BookOpen, Sparkles, ChevronDown,
 } from 'lucide-react'
-import { saveAs } from 'file-saver'
+import { saveFile } from '@/lib/fileAdapter'
 import { clsx } from 'clsx'
 import { useUIStore, type ViewMode } from '@/store/ui'
 import { useDocumentStore } from '@/store/document'
@@ -52,7 +52,7 @@ export function Toolbar() {
     if (!state.isProject) {
       // .edm simple → descargar como archivo de texto
       const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
-      saveAs(blob, state.filename || 'documento.edm')
+      await saveFile(blob, state.filename || 'documento.edm')
       addToast('Archivo .edm descargado', 'success')
       return
     }
@@ -75,7 +75,7 @@ export function Toolbar() {
 
     const blob = await zip.generateAsync({ type: 'blob' })
     const zipName = indexName.replace(/\.edmindex$/, '') + '.zip'
-    saveAs(blob, zipName)
+    await saveFile(blob, zipName)
     addToast('Proyecto descargado como ZIP', 'success')
   }, [addToast])
 

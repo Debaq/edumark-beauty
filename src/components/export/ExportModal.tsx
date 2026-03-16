@@ -12,7 +12,7 @@ import { exportPdf } from '@/lib/exportPdf'
 import { exportDocx } from '@/lib/exportDocx'
 import { Toggle } from '@/components/ui/Toggle'
 import { PageConfigSection } from './PageConfigSection'
-import { saveAs } from 'file-saver'
+import { saveFile } from '@/lib/fileAdapter'
 
 interface ExportCard {
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -42,10 +42,10 @@ export function ExportModal() {
   const [embedListVariant, setEmbedListVariant] = useState<'embed' | 'app' | null>(null)
 
   // --- HTML mode handlers ---
-  const handleHtml = useCallback(() => {
+  const handleHtml = useCallback(async () => {
     const fullHtml = exportFullHtml(html, themeConfig, filename)
     const blob = new Blob([fullHtml], { type: 'text/html' })
-    saveAs(blob, filename.replace(/\.edm$/, '') + '.html')
+    await saveFile(blob, filename.replace(/\.edm$/, '') + '.html')
     addToast('HTML exportado correctamente', 'success')
     setOpen(false)
   }, [html, themeConfig, filename, addToast, setOpen])
@@ -84,7 +84,7 @@ export function ExportModal() {
       const { exportPresentationHtml } = await import('@/lib/exportPresentation')
       const result = exportPresentationHtml(slides, themeConfig, slideConfig, filename)
       const blob = new Blob([result], { type: 'text/html' })
-      saveAs(blob, filename.replace(/\.edm$/, '') + '_presentacion.html')
+      await saveFile(blob, filename.replace(/\.edm$/, '') + '_presentacion.html')
       addToast('Presentacion HTML exportada', 'success')
     } catch {
       addToast('Error al exportar presentacion', 'error')
