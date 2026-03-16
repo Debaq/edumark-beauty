@@ -37,6 +37,8 @@ interface DocumentStore {
   mergedSource: string
   /** HTML fusionado decodificado */
   mergedHtml: string
+  /** True si hay cambios sin guardar */
+  dirty: boolean
 
   setSource: (source: string) => void
   setFilename: (name: string) => void
@@ -92,8 +94,9 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
   indexSource: '',
   mergedSource: '',
   mergedHtml: '',
+  dirty: false,
 
-  setSource: (source) => set({ source }),
+  setSource: (source) => set({ source, dirty: true }),
   setFilename: (name) => set({ filename: name }),
   setHtml: (html) => set({ html }),
   setSourceUrl: (url) => set({ sourceUrl: url }),
@@ -112,6 +115,7 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       // Empezar mostrando el primer capítulo
       source: first?.source ?? '',
       html: first?.html ?? '',
+      dirty: false,
     })
   },
 
@@ -217,5 +221,6 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
       indexSource: '',
       mergedSource: '',
       mergedHtml: '',
+      dirty: false,
     }),
 }))

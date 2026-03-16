@@ -129,31 +129,35 @@ export default function App() {
   useEffect(() => {
     if (!isTauri()) return
     let unlisten: (() => void) | undefined
+    let closing = false // guard against double-fire
     ;(async () => {
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window')
         const win = getCurrentWindow()
         unlisten = await win.onCloseRequested(async (event) => {
+          if (closing) return
           const state = useDocumentStore.getState()
-          if (!state.source) {
-            // No document open, close directly
-            return
-          }
+
+          // No document or no unsaved changes → close directly
+          if (!state.source || !state.dirty) return
 
           event.preventDefault()
+          closing = true
 
-          const answer = await confirmSave('¿Guardar cambios antes de cerrar?')
-          if (answer === 'save') {
-            // Try quick-save if we have a path
-            const saved = await quickSave(state.source, state.filePath)
-            if (!saved) {
-              // No path known: use save dialog
-              const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
-              await saveFile(blob, state.filename || 'documento.edm')
+          try {
+            const answer = await confirmSave('¿Guardar cambios antes de cerrar?')
+            if (answer === 'save') {
+              const saved = await quickSave(state.source, state.filePath)
+              if (!saved) {
+                const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
+                await saveFile(blob, state.filename || 'documento.edm')
+              }
             }
+            // Both 'save' and 'discard' close the window
+            await win.destroy()
+          } finally {
+            closing = false
           }
-          // Both 'save' (after saving) and 'discard' close the window
-          await win.destroy()
         })
       } catch { /* not in Tauri */ }
     })()

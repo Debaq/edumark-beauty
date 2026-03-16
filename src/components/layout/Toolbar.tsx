@@ -53,12 +53,14 @@ export function Toolbar() {
     if (!state.isProject) {
       // Tauri: guardar directo si ya hay ruta conocida
       if (await quickSave(state.source, state.filePath)) {
+        useDocumentStore.setState({ dirty: false })
         addToast('Guardado', 'success')
         return
       }
       // Web o primera vez: diálogo / descarga
       const blob = new Blob([state.source], { type: 'text/plain;charset=utf-8' })
       await saveFile(blob, state.filename || 'documento.edm')
+      useDocumentStore.setState({ dirty: false })
       addToast('Archivo .edm descargado', 'success')
       return
     }
@@ -82,6 +84,7 @@ export function Toolbar() {
     const blob = await zip.generateAsync({ type: 'blob' })
     const zipName = indexName.replace(/\.edmindex$/, '') + '.zip'
     await saveFile(blob, zipName)
+    useDocumentStore.setState({ dirty: false })
     addToast('Proyecto descargado como ZIP', 'success')
   }, [addToast])
 
