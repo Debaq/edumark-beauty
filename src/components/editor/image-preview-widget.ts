@@ -8,14 +8,18 @@ import { imageToWebpBase64 } from '@/lib/imageToBase64'
 // ── Widget ──────────────────────────────────────────────
 
 class ImagePreviewWidget extends WidgetType {
-  constructor(
-    readonly dataUri: string,
-    readonly sizeKB: number,
-    /** Absolute range of the data URI value in the document (for replacement) */
-    readonly valueFrom: number,
-    readonly valueTo: number,
-  ) {
+  dataUri: string
+  sizeKB: number
+  /** Absolute range of the data URI value in the document (for replacement) */
+  valueFrom: number
+  valueTo: number
+
+  constructor(dataUri: string, sizeKB: number, valueFrom: number, valueTo: number) {
     super()
+    this.dataUri = dataUri
+    this.sizeKB = sizeKB
+    this.valueFrom = valueFrom
+    this.valueTo = valueTo
   }
 
   toDOM(view: EditorView): HTMLElement {
