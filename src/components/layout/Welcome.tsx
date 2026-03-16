@@ -85,10 +85,8 @@ export function Welcome() {
     async (indexSource: string, indexName: string, fileMap: Map<string, string>) => {
       // Todos los includes (en orden de aparición) para capítulos
       const allIncludes = parseAllIncludes(indexSource)
-      console.log('[loadEdmIndex] allIncludes:', allIncludes.length, allIncludes)
       // Solo @include() para resolución/inlining en merged
       const { resolved, missing } = resolveEdmIndex(indexSource, fileMap)
-      console.log('[loadEdmIndex] resolved length:', resolved.length, 'missing:', missing)
 
       if (missing.length > 0) {
         addToast(`${missing.length} archivo(s) no encontrado(s): ${missing.join(', ')}`, 'error')
@@ -126,8 +124,6 @@ export function Welcome() {
       // Aplicar tema del índice
       useThemeStore.getState().loadThemeFromSource(resolved)
 
-      console.log('[loadEdmIndex] chapters:', chapters.length, 'first source length:', chapters[0]?.source?.length ?? 0)
-
       loadProject({
         filename: indexName,
         indexSource,
@@ -137,9 +133,6 @@ export function Welcome() {
       })
       // Recién cargado = no hay cambios sin guardar
       useDocumentStore.setState({ dirty: false })
-
-      const state = useDocumentStore.getState()
-      console.log('[loadEdmIndex] AFTER loadProject — source length:', state.source.length, 'isProject:', state.isProject, 'filename:', state.filename)
     },
     [loadProject, addToast]
   )
@@ -235,11 +228,8 @@ export function Welcome() {
       }
       for (const [k, v] of fileMap) mergedMap.set(k, v)
 
-      console.log('[handleIncludeResolve] mergedMap:', mergedMap.size, 'files')
-
       // Buscar dependencias transitivas en los archivos recién cargados
       const missing = findMissingRecursive(pendingIndex.indexSource, mergedMap)
-      console.log('[handleIncludeResolve] missing:', missing)
 
       if (missing.length > 0) {
         // Faltan archivos → extender modal con las nuevas dependencias
@@ -253,14 +243,11 @@ export function Welcome() {
         return
       }
 
-      console.log('[handleIncludeResolve] loading project...')
       setPendingIndex(null)
       try {
         await loadEdmIndex(pendingIndex.indexSource, pendingIndex.indexFilename, mergedMap)
         if (pendingIndex.indexPath) setFilePath(pendingIndex.indexPath)
-        console.log('[handleIncludeResolve] project loaded OK')
-      } catch (e) {
-        console.error('[handleIncludeResolve] loadEdmIndex FAILED:', e)
+      } catch {
         addToast('Error al cargar el proyecto', 'error')
       }
     },

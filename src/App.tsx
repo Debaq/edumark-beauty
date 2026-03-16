@@ -101,7 +101,6 @@ export default function App() {
   const autoLoaded = useRef(false)
   const [embedMode, setEmbedMode] = useState(false)
 
-  console.log('[App render] source length:', source.length, 'has source:', !!source)
 
   // Auto-load from ?url= query parameter; ?mode=embed for read-only preview
   useEffect(() => {
