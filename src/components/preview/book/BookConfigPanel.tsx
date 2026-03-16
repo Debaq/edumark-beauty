@@ -5,6 +5,7 @@ import { useContentModeStore } from '@/store/contentMode'
 import { useBookLayoutStore } from '@/store/bookLayout'
 import { PAPER_SIZES, type PageConfig } from '@/types/contentMode'
 import type { TextAlign } from '@/types/bookLayout'
+import { ColorPicker } from '@/components/ui/ColorPicker'
 
 interface Props {
   onClose: () => void
@@ -24,6 +25,8 @@ export function BookConfigPanel({ onClose }: Props) {
   const setDocTextAlign = useBookLayoutStore((s) => s.setDocTextAlign)
   const showHr = useBookLayoutStore((s) => s.layoutConfig?.showHr) ?? false
   const setShowHr = useBookLayoutStore((s) => s.setShowHr)
+  const docBgColor = useBookLayoutStore((s) => s.layoutConfig?.backgroundColor)
+  const setDocBackgroundColor = useBookLayoutStore((s) => s.setDocBackgroundColor)
 
   const handlePaperSize = (size: string) => {
     if (size === 'custom') {
@@ -143,7 +146,7 @@ export function BookConfigPanel({ onClose }: Props) {
       </div>
 
       {/* Document text alignment */}
-      <div>
+      <div className="mb-3">
         <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
           Alineado general
         </label>
@@ -162,6 +165,24 @@ export function BookConfigPanel({ onClose }: Props) {
               {icon}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Page background color */}
+      <div>
+        <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
+          Fondo de pagina
+        </label>
+        <div className="flex items-center gap-2">
+          <ColorPicker label="Color" value={docBgColor ?? '#ffffff'} onChange={(v) => setDocBackgroundColor(v)} />
+          {docBgColor && (
+            <button
+              onClick={() => setDocBackgroundColor(undefined)}
+              className="text-[9px] text-[var(--app-fg3)] hover:text-[var(--app-accent)] transition-colors"
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
     </div>

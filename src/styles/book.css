@@ -25,11 +25,11 @@
   overflow: hidden;
 }
 
-/* Force white background and remove max-width/padding inside book pages */
+/* Remove max-width/padding inside book pages; inherit bg from page */
 .edm-book-page .edm-preview {
   max-width: none;
   padding: 0;
-  background: white !important;
+  background: inherit;
 }
 
 /* Grid layout area */

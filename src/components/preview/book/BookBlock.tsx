@@ -97,6 +97,22 @@ function isEdmBlock(html: string): boolean {
   return /class="[^"]*edm-/.test(html)
 }
 
+/** Build inline CSS from block props (spacing + visual styles) */
+function buildBlockStyle(props?: BlockProps): React.CSSProperties {
+  if (!props) return {}
+  const s: React.CSSProperties = {}
+  if (props.marginTop) s.marginTop = `${props.marginTop}px`
+  if (props.marginBottom) s.marginBottom = `${props.marginBottom}px`
+  if (props.backgroundColor) s.backgroundColor = props.backgroundColor
+  if (props.padding) s.padding = `${props.padding}px`
+  if (props.borderRadius) s.borderRadius = `${props.borderRadius}px`
+  if (props.borderColor && props.borderWidth) {
+    s.border = `${props.borderWidth}px solid ${props.borderColor}`
+  }
+  if (props.shadow) s.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'
+  return s
+}
+
 export function BookBlock({
   node,
   blockProps,
@@ -126,6 +142,7 @@ export function BookBlock({
     opacity: isDragging ? 0.5 : 1,
     order: blockProps?.order,
     textAlign: blockProps?.textAlign,
+    ...buildBlockStyle(blockProps),
   }
 
   // In two-columns mode: edm blocks avoid breaking, fullWidth spans all columns

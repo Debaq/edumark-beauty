@@ -41,6 +41,8 @@ export async function exportBookPdf(
       ordinal++
     }
 
+    const docBg = bookLayout.backgroundColor
+
     const pagesHtml = bookLayout.pages.map((pageConf) => {
       const blocks: string[] = []
 
@@ -51,14 +53,22 @@ export async function exportBookPdf(
         const styles: string[] = []
         if (props?.fullWidth) styles.push('column-span:all;')
         if (props?.order != null) styles.push(`order:${props.order};`)
-        // Edm blocks avoid breaking across columns
+        if (props?.marginTop) styles.push(`margin-top:${props.marginTop}px;`)
+        if (props?.marginBottom) styles.push(`margin-bottom:${props.marginBottom}px;`)
+        if (props?.backgroundColor) styles.push(`background-color:${props.backgroundColor};`)
+        if (props?.padding) styles.push(`padding:${props.padding}px;`)
+        if (props?.borderRadius) styles.push(`border-radius:${props.borderRadius}px;`)
+        if (props?.borderColor && props?.borderWidth) styles.push(`border:${props.borderWidth}px solid ${props.borderColor};`)
+        if (props?.shadow) styles.push('box-shadow:0 2px 8px rgba(0,0,0,0.12);')
         if (/class="[^"]*edm-/.test(blockHtml)) styles.push('break-inside:avoid;')
         const styleAttr = styles.length ? ` style="${styles.join('')}"` : ''
         blocks.push(`<div${styleAttr}>${blockHtml}</div>`)
       }
 
       const layoutCss = getLayoutCss(pageConf.layout, bookLayout.columnGap ?? 24)
-      return `<div style="${layoutCss}">${blocks.join('')}</div>`
+      const pageBg = pageConf.backgroundColor ?? docBg
+      const pageBgCss = pageBg ? `background-color:${pageBg};` : ''
+      return `<div style="${layoutCss}${pageBgCss}">${blocks.join('')}</div>`
     })
 
     contentHtml = pagesHtml.join('<div style="page-break-after:always;"></div>')

@@ -26,6 +26,7 @@ interface BookPageProps {
   totalPages: number
   columnGap: number
   docTextAlign?: string
+  backgroundColor?: string
   onChangeLayout?: (layout: PageLayout) => void
 }
 
@@ -42,6 +43,7 @@ export function BookPage({
   totalPages,
   columnGap,
   docTextAlign,
+  backgroundColor,
   onChangeLayout,
 }: BookPageProps) {
   const droppableId = `page-${pageIndex}`
@@ -59,7 +61,7 @@ export function BookPage({
   return (
     <div
       className={`edm-book-page ${isEditing ? 'edm-book-page-editing' : ''} ${isOver ? 'edm-book-page-drop-target' : ''}`}
-      style={style}
+      style={{ ...style, backgroundColor: backgroundColor ?? 'white' }}
       data-page-index={pageIndex}
       onClick={(e) => {
         if (e.target === e.currentTarget && isEditing) {

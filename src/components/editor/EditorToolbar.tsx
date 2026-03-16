@@ -4,10 +4,11 @@ import type { EditorView } from '@codemirror/view'
 import {
   Bold, Italic, Strikethrough, Code, Braces,
   List, ListOrdered, ListChecks, Quote,
-  Link2, Image, Table, Minus, ChevronDown,
+  Link2, Image, ImagePlus, Table, Minus, ChevronDown,
   Palette, Type, Superscript, Subscript,
   Smile, LayoutGrid,
 } from 'lucide-react'
+import { imageToWebpBase64 } from '@/lib/imageToBase64'
 import { clsx } from 'clsx'
 import {
   wrapSelection, insertAtLineStart, setHeading, insertBlockText,
@@ -302,7 +303,32 @@ export function EditorToolbar({ getView }: EditorToolbarProps) {
 
       {/* ── Insert ── */}
       <ToolbarBtn icon={Link2} title="Enlace (Ctrl+K)" onClick={() => wrap('[', '](url)', 'texto')} />
-      <ToolbarBtn icon={Image} title="Imagen" onClick={() => insert('![alt](url)')} />
+      <ToolbarBtn icon={Image} title="Imagen (markdown)" onClick={() => insert('![alt](url)')} />
+      <ToolbarBtn
+        icon={ImagePlus}
+        title="Insertar imagen (archivo)"
+        onClick={() => {
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = 'image/*'
+          input.onchange = async () => {
+            const file = input.files?.[0]
+            if (!file) return
+            const view = getView()
+            if (!view) return
+            const dataUri = await imageToWebpBase64(file)
+            const pos = view.state.selection.main.head
+            const line = view.state.doc.lineAt(pos)
+            const isEmptyLine = line.text.trim() === '' && pos === line.from
+            const prefix = isEmptyLine ? '' : '\n\n'
+            const id = `fig-${Date.now()}`
+            const blockText = `${prefix}:::image id="${id}"\nfile: ${dataUri}\ntitle: ""\nalt: ""\n:::\n`
+            view.dispatch({ changes: { from: pos, to: pos, insert: blockText } })
+            view.focus()
+          }
+          input.click()
+        }}
+      />
       <ToolbarBtn icon={Minus} title="Linea horizontal / separador" onClick={() => block('---')} />
 
       {/* Table picker */}

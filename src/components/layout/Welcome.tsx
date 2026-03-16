@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
-import { Upload, FileText, Sparkles, Download, HelpCircle } from 'lucide-react'
+import { Upload, FileText, FilePlus, Sparkles, Download, HelpCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useDocumentStore } from '@/store/document'
 import { useThemeStore } from '@/store/theme'
@@ -95,6 +95,11 @@ export function Welcome() {
       .finally(() => setSkillsLoading(false))
   }, [])
 
+  const handleNewDocument = useCallback(() => {
+    const template = '# New document\n\nStart writing here...\n'
+    loadContent(template, 'new_document.edm')
+  }, [loadContent])
+
   const handleLoadExample = useCallback(
     async (file: string) => {
       setLoadingExample(file)
@@ -165,6 +170,17 @@ export function Welcome() {
           onChange={handleFileInput}
           className="hidden"
         />
+
+        {/* Nuevo documento */}
+        <button
+          onClick={handleNewDocument}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl
+            bg-[var(--app-accent)] text-white text-sm font-medium
+            hover:opacity-90 transition-all"
+        >
+          <FilePlus size={18} />
+          Nuevo documento
+        </button>
 
         {/* Separador */}
         <div className="flex items-center gap-3 w-full">

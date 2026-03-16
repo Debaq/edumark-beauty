@@ -1,0 +1,258 @@
+/* ========================================
+   SVG Editor
+   ======================================== */
+
+.edm-svg-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--app-bg, #171717);
+  color: var(--app-fg, #e5e5e5);
+}
+
+/* ── Toolbar ── */
+
+.edm-svg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--app-border, #333);
+  background: var(--app-bg1, #1e1e1e);
+  flex-shrink: 0;
+}
+
+.edm-svg-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.edm-svg-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--app-border, #333);
+  margin: 0 6px;
+}
+
+.edm-svg-toolbar-btn {
+  width: 30px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--app-fg2, #aaa);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.edm-svg-toolbar-btn:hover {
+  color: var(--app-fg, #e5e5e5);
+  background: var(--app-bg2, #2a2a2a);
+}
+
+.edm-svg-toolbar-btn.active {
+  color: var(--app-accent, #3b82f6);
+  border-color: var(--app-accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.edm-svg-toolbar-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.edm-svg-toolbar-btn.save {
+  color: #22c55e;
+}
+.edm-svg-toolbar-btn.save:hover {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.edm-svg-toolbar-btn.cancel {
+  color: #ef4444;
+}
+.edm-svg-toolbar-btn.cancel:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* ── Main area ── */
+
+.edm-svg-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Canvas ── */
+
+.edm-svg-canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Checkerboard background */
+  background-color: #f0f0f0;
+  background-image:
+    linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+    linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.edm-svg-canvas-wrap.panning {
+  cursor: grabbing;
+}
+
+.edm-svg-canvas-inner {
+  transform-origin: 0 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.edm-svg-canvas-inner svg {
+  display: block;
+  /* Make elements with fill:none clickable on their bounding box, not just stroke */
+  pointer-events: bounding-box;
+}
+
+/* Selection overlay */
+.edm-svg-selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.edm-svg-bbox {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.edm-svg-handle {
+  width: 8px;
+  height: 8px;
+  fill: white;
+  stroke: #3b82f6;
+  stroke-width: 1.5;
+  pointer-events: all;
+  cursor: nwse-resize;
+}
+
+/* Hover highlight on SVG elements — wide hit area + visible feedback */
+.edm-svg-canvas-inner svg > *:not(defs):not(style):not(marker):not(clipPath):not(linearGradient):not(radialGradient):not(pattern):not(filter):not(symbol) {
+  cursor: pointer;
+  pointer-events: all;
+}
+.edm-svg-canvas-inner svg > *:not(defs):not(style):not(marker):not(clipPath):not(linearGradient):not(radialGradient):not(pattern):not(filter):not(symbol):hover {
+  outline: 1.5px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Creation preview shape */
+.edm-svg-creation-preview {
+  fill: rgba(59, 130, 246, 0.1);
+  stroke: #3b82f6;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+/* ── Properties Panel ── */
+
+.edm-svg-props-panel {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 12px;
+  border-left: 1px solid var(--app-border, #333);
+  background: var(--app-bg1, #1e1e1e);
+}
+
+.edm-svg-props-section {
+  margin-bottom: 12px;
+}
+
+.edm-svg-props-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--app-fg3, #888);
+  margin-bottom: 6px;
+}
+
+.edm-svg-props-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.edm-svg-props-row label {
+  font-size: 11px;
+  color: var(--app-fg2, #aaa);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.edm-svg-props-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--app-border, #333);
+  background: var(--app-bg, #171717);
+  color: var(--app-fg, #e5e5e5);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.edm-svg-props-input:focus {
+  outline: none;
+  border-color: var(--app-accent, #3b82f6);
+}
+
+/* Color toggle for currentColor */
+.edm-svg-color-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edm-svg-color-toggle button {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--app-border, #333);
+  background: transparent;
+  color: var(--app-fg3, #888);
+  cursor: pointer;
+}
+
+.edm-svg-color-toggle button.active {
+  border-color: var(--app-accent, #3b82f6);
+  color: var(--app-accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ── Zoom display ── */
+
+.edm-svg-zoom-display {
+  font-size: 10px;
+  color: var(--app-fg3, #888);
+  min-width: 38px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+}

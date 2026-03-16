@@ -180,6 +180,27 @@ export function BookPreview() {
     toggleEditing()
   }, [isEditing, handleEnterEditing, toggleEditing])
 
+  // ── Undo/Redo keyboard shortcuts ──
+  const undo = useBookLayoutStore((s) => s.undo)
+  const redo = useBookLayoutStore((s) => s.redo)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!isEditing) return
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (
+        (e.ctrlKey || e.metaKey) && (e.key === 'Z' || (e.key === 'z' && e.shiftKey)) ||
+        (e.ctrlKey || e.metaKey) && e.key === 'y'
+      ) {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isEditing, undo, redo])
+
   // Clamp selectedPageIndex to valid range
   const safePageIndex = pages.length > 0 ? Math.min(selectedPageIndex, pages.length - 1) : 0
 
@@ -361,6 +382,7 @@ export function BookPreview() {
                 const pageConf = layoutConfig?.pages[i]
                 const layout = pageConf?.layout ?? 'stack'
                 const blockProps = pageConf?.blockProps ?? {}
+                const pageBg = pageConf?.backgroundColor ?? layoutConfig?.backgroundColor
 
                 return (
                   <BookPage
@@ -387,6 +409,7 @@ export function BookPreview() {
                     totalPages={pages.length}
                     columnGap={columnGap}
                     docTextAlign={layoutConfig?.textAlign}
+                    backgroundColor={pageBg}
                     onChangeLayout={isEditing ? (layout) => setPageLayout(i, layout) : undefined}
                   />
                 )

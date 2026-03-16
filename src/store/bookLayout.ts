@@ -4,6 +4,8 @@ import { DEFAULT_BLOCK_PROPS } from '@/types/bookLayout'
 import { updateBookLayoutInSource, removeBookLayoutFromSource } from '@/lib/bookLayoutParser'
 import { useDocumentStore } from '@/store/document'
 
+const MAX_HISTORY = 50
+
 interface BookLayoutStore {
   /** Current layout config (null = auto pagination) */
   layoutConfig: BookLayoutConfig | null
@@ -15,6 +17,10 @@ interface BookLayoutStore {
   isEditing: boolean
   /** Total pages (for navigation) */
   totalPages: number
+  /** Undo stack */
+  _history: BookLayoutConfig[]
+  /** Redo stack */
+  _future: BookLayoutConfig[]
 
   setLayoutConfig: (config: BookLayoutConfig | null) => void
   loadFromSource: (config: BookLayoutConfig | null) => void
@@ -28,12 +34,14 @@ interface BookLayoutStore {
   setEditing: (editing: boolean) => void
   resetToAuto: () => void
   setTotalPages: (total: number) => void
-  /** Initialize manual layout from auto-paginated pages */
   initFromAutoPages: (pages: { nodeId: string }[][]) => void
   setColumnGap: (gap: number) => void
   setDocTextAlign: (align: TextAlign) => void
   setShowHr: (show: boolean) => void
-  /** Force immediate persist (e.g. before PDF export) */
+  setDocBackgroundColor: (color: string | undefined) => void
+  setPageBackgroundColor: (pageIdx: number, color: string | undefined) => void
+  undo: () => void
+  redo: () => void
   flushPersist: () => void
 }
 
@@ -76,12 +84,23 @@ function flushPendingPersist() {
   }
 }
 
+/** Push current config to history stack (call before mutating) */
+function pushHistory(state: BookLayoutStore): Partial<BookLayoutStore> {
+  if (!state.layoutConfig) return {}
+  const snap = structuredClone(state.layoutConfig)
+  const history = [...state._history, snap]
+  if (history.length > MAX_HISTORY) history.shift()
+  return { _history: history, _future: [] }
+}
+
 export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
   layoutConfig: null,
   selectedBlockId: null,
   selectedPageIndex: 0,
   isEditing: false,
   totalPages: 0,
+  _history: [],
+  _future: [],
 
   setLayoutConfig: (config) => {
     set({ layoutConfig: config })
@@ -89,14 +108,14 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
   },
 
   loadFromSource: (config) => {
-    set({ layoutConfig: config })
+    set({ layoutConfig: config, _history: [], _future: [] })
   },
 
   moveBlock: (fromPage, fromIndex, toPage, toIndex) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
+    const state = get()
+    if (!state.layoutConfig) return
 
-    const pages = structuredClone(layoutConfig.pages)
+    const pages = structuredClone(state.layoutConfig.pages)
     const srcPage = pages[fromPage]
     if (!srcPage) return
 
@@ -106,7 +125,6 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
 
     dstPage.blockIds.splice(toIndex, 0, blockId)
 
-    // Move blockProps if crossing pages
     if (fromPage !== toPage) {
       const props = srcPage.blockProps[blockId]
       if (props) {
@@ -115,18 +133,17 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
       }
     }
 
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig })
+    const newConfig = { ...state.layoutConfig, pages }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },
 
   moveBlockToPage: (blockId, targetPage, position) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
+    const state = get()
+    if (!state.layoutConfig) return
 
-    const pages = structuredClone(layoutConfig.pages)
+    const pages = structuredClone(state.layoutConfig.pages)
 
-    // Find current page
     let fromPageIdx = -1
     let fromBlockIdx = -1
     for (let p = 0; p < pages.length; p++) {
@@ -151,36 +168,35 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
       dstPage.blockIds.push(blockId)
     }
 
-    // Move props
     const props = srcPage.blockProps[blockId]
     if (props) {
       delete srcPage.blockProps[blockId]
       dstPage.blockProps[blockId] = props
     }
 
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig, selectedPageIndex: targetPage })
+    const newConfig = { ...state.layoutConfig, pages }
+    set({ ...pushHistory(state), layoutConfig: newConfig, selectedPageIndex: targetPage })
     debouncedPersist(newConfig)
   },
 
   setPageLayout: (pageIndex, layout) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
+    const state = get()
+    if (!state.layoutConfig) return
 
-    const pages = structuredClone(layoutConfig.pages)
+    const pages = structuredClone(state.layoutConfig.pages)
     if (!pages[pageIndex]) return
 
     pages[pageIndex].layout = layout
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig })
+    const newConfig = { ...state.layoutConfig, pages }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },
 
   setBlockProps: (pageIndex, blockId, props) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
+    const state = get()
+    if (!state.layoutConfig) return
 
-    const pages = structuredClone(layoutConfig.pages)
+    const pages = structuredClone(state.layoutConfig.pages)
     const page = pages[pageIndex]
     if (!page) return
 
@@ -189,8 +205,8 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
       ...props,
     }
 
-    const newConfig = { ...layoutConfig, pages }
-    set({ layoutConfig: newConfig })
+    const newConfig = { ...state.layoutConfig, pages }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },
 
@@ -206,7 +222,7 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
   setEditing: (editing) => set({ isEditing: editing, selectedBlockId: null }),
 
   resetToAuto: () => {
-    set({ layoutConfig: null, isEditing: false, selectedBlockId: null })
+    set({ layoutConfig: null, isEditing: false, selectedBlockId: null, _history: [], _future: [] })
     doPersist(null)
   },
 
@@ -230,32 +246,71 @@ export const useBookLayoutStore = create<BookLayoutStore>((set, get) => ({
       pages: pageConfigs,
     }
 
-    set({ layoutConfig: config })
+    set({ layoutConfig: config, _history: [], _future: [] })
     doPersist(config)
   },
 
   setShowHr: (show) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
-    const newConfig = { ...layoutConfig, showHr: show }
-    set({ layoutConfig: newConfig })
+    const state = get()
+    if (!state.layoutConfig) return
+    const newConfig = { ...state.layoutConfig, showHr: show }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },
 
   setColumnGap: (gap) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
-    const newConfig = { ...layoutConfig, columnGap: gap }
-    set({ layoutConfig: newConfig })
+    const state = get()
+    if (!state.layoutConfig) return
+    const newConfig = { ...state.layoutConfig, columnGap: gap }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
   },
 
   setDocTextAlign: (align) => {
-    const { layoutConfig } = get()
-    if (!layoutConfig) return
-    const newConfig = { ...layoutConfig, textAlign: align }
-    set({ layoutConfig: newConfig })
+    const state = get()
+    if (!state.layoutConfig) return
+    const newConfig = { ...state.layoutConfig, textAlign: align }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
     debouncedPersist(newConfig)
+  },
+
+  setDocBackgroundColor: (color) => {
+    const state = get()
+    if (!state.layoutConfig) return
+    const newConfig = { ...state.layoutConfig, backgroundColor: color }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
+    debouncedPersist(newConfig)
+  },
+
+  setPageBackgroundColor: (pageIdx, color) => {
+    const state = get()
+    if (!state.layoutConfig) return
+    const pages = structuredClone(state.layoutConfig.pages)
+    if (!pages[pageIdx]) return
+    pages[pageIdx].backgroundColor = color
+    const newConfig = { ...state.layoutConfig, pages }
+    set({ ...pushHistory(state), layoutConfig: newConfig })
+    debouncedPersist(newConfig)
+  },
+
+  undo: () => {
+    const { _history, layoutConfig, _future } = get()
+    if (_history.length === 0) return
+    const prev = _history[_history.length - 1]
+    const newHistory = _history.slice(0, -1)
+    const newFuture = layoutConfig ? [structuredClone(layoutConfig), ..._future] : _future
+    set({ layoutConfig: prev, _history: newHistory, _future: newFuture })
+    debouncedPersist(prev)
+  },
+
+  redo: () => {
+    const { _future, layoutConfig, _history } = get()
+    if (_future.length === 0) return
+    const next = _future[0]
+    const newFuture = _future.slice(1)
+    const newHistory = layoutConfig ? [..._history, structuredClone(layoutConfig)] : _history
+    set({ layoutConfig: next, _history: newHistory, _future: newFuture })
+    debouncedPersist(next)
   },
 
   flushPersist: () => {

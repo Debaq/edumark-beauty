@@ -11,16 +11,26 @@ const commentFoldService = foldService.of((state, lineStart) => {
   const line = state.doc.lineAt(lineStart)
   const trimmed = line.text.trimStart()
 
-  if (!trimmed.startsWith('<!--')) return null
-  // Single-line comment — nothing to fold
-  if (trimmed.includes('-->')) return null
-
-  for (let i = line.number + 1; i <= state.doc.lines; i++) {
-    const next = state.doc.line(i)
-    if (next.text.includes('-->')) {
-      return { from: line.to, to: next.to }
+  // Multi-line HTML comments (<!-- … -->)
+  if (trimmed.startsWith('<!--') && !trimmed.includes('-->')) {
+    for (let i = line.number + 1; i <= state.doc.lines; i++) {
+      const next = state.doc.line(i)
+      if (next.text.includes('-->')) {
+        return { from: line.to, to: next.to }
+      }
     }
   }
+
+  // Fenced code blocks: ```svg, ```mermaid, ```d2, ```dot
+  if (/^```(svg|mermaid|d2|dot)\b/.test(trimmed)) {
+    for (let i = line.number + 1; i <= state.doc.lines; i++) {
+      const next = state.doc.line(i)
+      if (next.text.trimStart() === '```') {
+        return { from: line.to, to: next.to }
+      }
+    }
+  }
+
   return null
 })
 
@@ -32,7 +42,7 @@ const autoFold = ViewPlugin.fromClass(
   class {
     constructor(view: EditorView) {
       // Wait one frame so the editor is fully laid out
-      requestAnimationFrame(() => this.foldComments(view))
+      requestAnimationFrame(() => this.foldAll(view))
     }
 
     update(update: ViewUpdate) {
@@ -45,25 +55,40 @@ const autoFold = ViewPlugin.fromClass(
       })
 
       if (fullReplace) {
-        requestAnimationFrame(() => this.foldComments(update.view))
+        requestAnimationFrame(() => this.foldAll(update.view))
       }
     }
 
-    foldComments(view: EditorView) {
+    foldAll(view: EditorView) {
       const effects: StateEffect<{ from: number; to: number }>[] = []
       const doc = view.state.doc
 
       for (let i = 1; i <= doc.lines; i++) {
         const line = doc.line(i)
         const trimmed = line.text.trimStart()
-        if (!trimmed.startsWith('<!--') || trimmed.includes('-->')) continue
 
-        for (let j = i + 1; j <= doc.lines; j++) {
-          const next = doc.line(j)
-          if (next.text.includes('-->')) {
-            effects.push(foldEffect.of({ from: line.to, to: next.to }))
-            i = j
-            break
+        // Multi-line HTML comments
+        if (trimmed.startsWith('<!--') && !trimmed.includes('-->')) {
+          for (let j = i + 1; j <= doc.lines; j++) {
+            const next = doc.line(j)
+            if (next.text.includes('-->')) {
+              effects.push(foldEffect.of({ from: line.to, to: next.to }))
+              i = j
+              break
+            }
+          }
+          continue
+        }
+
+        // Fenced code blocks: ```svg, ```mermaid, ```d2, ```dot
+        if (/^```(svg|mermaid|d2|dot)\b/.test(trimmed)) {
+          for (let j = i + 1; j <= doc.lines; j++) {
+            const next = doc.line(j)
+            if (next.text.trimStart() === '```') {
+              effects.push(foldEffect.of({ from: line.to, to: next.to }))
+              i = j
+              break
+            }
           }
         }
       }

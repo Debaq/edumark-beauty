@@ -6,6 +6,7 @@ import { useContentModeStore } from '@/store/contentMode'
 import { EdmEditor, type EdmEditorHandle } from '@/components/editor/EdmEditor'
 import { EditorToolbar } from '@/components/editor/EditorToolbar'
 import { PreviewRouter } from '@/components/preview/PreviewRouter'
+import { SvgEditorPanel } from '@/components/svg-editor/SvgEditorPanel'
 import type { PreviewHandle } from '@/components/preview/Preview'
 import { findSlideBoundaries } from '@/lib/slideParser'
 
@@ -59,6 +60,7 @@ export function Panels() {
   const scrollSync = useUIStore((s) => s.scrollSync)
   const toggleScrollSync = useUIStore((s) => s.toggleScrollSync)
   const contentMode = useContentModeStore((s) => s.contentMode)
+  const svgEditorActive = useUIStore((s) => s.svgEditorActive)
   const currentSlide = useContentModeStore((s) => s.currentSlide)
   const setCurrentSlide = useContentModeStore((s) => s.setCurrentSlide)
   const slides = useContentModeStore((s) => s.slides)
@@ -72,10 +74,14 @@ export function Panels() {
   const previewRef = useRef<PreviewHandle>(null)
   const isSyncing = useRef(false)
 
-  // Adjust split ratio when content mode changes
+  // Adjust split ratio when content mode or SVG editor changes
   useEffect(() => {
-    setSplitPercent(contentMode === 'presentation' ? 33 : 50)
-  }, [contentMode])
+    if (svgEditorActive) {
+      setSplitPercent(33)
+    } else {
+      setSplitPercent(contentMode === 'presentation' ? 33 : 50)
+    }
+  }, [contentMode, svgEditorActive])
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true
@@ -329,7 +335,7 @@ export function Panels() {
   if (viewMode === 'preview') {
     return (
       <div className="flex-1 overflow-hidden">
-        <PreviewRouter />
+        {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter />}
       </div>
     )
   }
@@ -361,7 +367,7 @@ export function Panels() {
       </div>
 
       <div className="overflow-hidden" style={{ width: `${100 - splitPercent}%` }}>
-        <PreviewRouter ref={previewRef} />
+        {svgEditorActive ? <SvgEditorPanel /> : <PreviewRouter ref={previewRef} />}
       </div>
     </div>
   )

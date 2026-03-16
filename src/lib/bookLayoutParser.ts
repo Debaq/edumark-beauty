@@ -13,10 +13,15 @@ export function parseBookLayout(source: string): BookLayoutConfig | null {
   try {
     const data = JSON.parse(match[1].trim())
     if (!data.pages || !Array.isArray(data.pages)) return null
-    return {
+    const config: BookLayoutConfig = {
       isManual: data.isManual ?? true,
       pages: data.pages,
     }
+    if (data.columnGap != null) config.columnGap = data.columnGap
+    if (data.textAlign != null) config.textAlign = data.textAlign
+    if (data.showHr != null) config.showHr = data.showHr
+    if (data.backgroundColor != null) config.backgroundColor = data.backgroundColor
+    return config
   } catch {
     return null
   }
@@ -26,10 +31,12 @@ export function parseBookLayout(source: string): BookLayoutConfig | null {
  * Build the HTML comment block string for a book layout config.
  */
 export function buildBookLayoutBlock(config: BookLayoutConfig): string {
-  const obj = {
-    isManual: config.isManual,
-    pages: config.pages,
-  }
+  const { isManual, pages, columnGap, textAlign, showHr, backgroundColor } = config
+  const obj: Record<string, unknown> = { isManual, pages }
+  if (columnGap != null) obj.columnGap = columnGap
+  if (textAlign != null) obj.textAlign = textAlign
+  if (showHr != null) obj.showHr = showHr
+  if (backgroundColor != null) obj.backgroundColor = backgroundColor
   return `<!-- ${TAG}\n${JSON.stringify(obj)}\n-->`
 }
 

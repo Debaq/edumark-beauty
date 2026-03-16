@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import {
   X, ChevronUp, ChevronDown, Columns2, Square,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -6,6 +6,8 @@ import {
 import { useBookLayoutStore } from '@/store/bookLayout'
 import type { BlockProps, TextAlign } from '@/types/bookLayout'
 import { detectBlockInfo } from './BookBlock'
+import { Slider } from '@/components/ui/Slider'
+import { ColorPicker } from '@/components/ui/ColorPicker'
 
 interface Props {
   pageIndex: number
@@ -32,6 +34,13 @@ export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, tota
   const info = useMemo(() => detectBlockInfo(blockHtml), [blockHtml])
   const isFullWidth = blockProps?.fullWidth ?? false
   const currentAlign = blockProps?.textAlign ?? docTextAlign ?? 'left'
+
+  const setProp = useCallback(
+    (props: Partial<BlockProps>) => setBlockProps(pageIndex, blockId, props),
+    [setBlockProps, pageIndex, blockId],
+  )
+
+  const hasBorder = !!(blockProps?.borderColor && blockProps?.borderWidth)
 
   return (
     <div className="edm-book-block-panel">
@@ -124,6 +133,67 @@ export function BookBlockPanel({ pageIndex, blockId, blockProps, blockHtml, tota
           </div>
         </div>
       )}
+
+      {/* Spacing */}
+      <div className="mb-3">
+        <label className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider block mb-1.5">
+          Espaciado
+        </label>
+        <Slider label="Arriba" value={blockProps?.marginTop ?? 0} min={0} max={60} step={4} unit="px" onChange={(v) => setProp({ marginTop: v || undefined })} />
+        <Slider label="Abajo" value={blockProps?.marginBottom ?? 0} min={0} max={60} step={4} unit="px" onChange={(v) => setProp({ marginBottom: v || undefined })} />
+      </div>
+
+      {/* Visual styles */}
+      <details className="mb-3 group">
+        <summary className="text-[10px] text-[var(--app-fg3)] uppercase tracking-wider cursor-pointer select-none mb-1.5 list-none flex items-center gap-1">
+          <span className="text-[8px] group-open:rotate-90 transition-transform">▶</span> Estilo
+        </summary>
+        <div className="mt-1.5 flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <ColorPicker label="Fondo" value={blockProps?.backgroundColor ?? '#ffffff'} onChange={(v) => setProp({ backgroundColor: v })} />
+            {blockProps?.backgroundColor && (
+              <button
+                onClick={() => setProp({ backgroundColor: undefined })}
+                className="text-[9px] text-[var(--app-fg3)] hover:text-[var(--app-accent)]"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+          <Slider label="Padding" value={blockProps?.padding ?? 0} min={0} max={32} step={2} unit="px" onChange={(v) => setProp({ padding: v || undefined })} />
+          <label className="flex items-center gap-2 py-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hasBorder}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setProp({ borderColor: '#e0e0e0', borderWidth: 1, borderRadius: blockProps?.borderRadius ?? 4 })
+                } else {
+                  setProp({ borderColor: undefined, borderWidth: undefined, borderRadius: undefined })
+                }
+              }}
+              className="accent-[var(--app-accent)]"
+            />
+            <span className="text-xs text-[var(--app-fg2)]">Borde</span>
+          </label>
+          {hasBorder && (
+            <div className="pl-2 flex flex-col gap-0.5">
+              <ColorPicker label="Color" value={blockProps?.borderColor ?? '#e0e0e0'} onChange={(v) => setProp({ borderColor: v })} />
+              <Slider label="Grosor" value={blockProps?.borderWidth ?? 1} min={1} max={4} step={1} unit="px" onChange={(v) => setProp({ borderWidth: v })} />
+              <Slider label="Radio" value={blockProps?.borderRadius ?? 0} min={0} max={16} step={2} unit="px" onChange={(v) => setProp({ borderRadius: v || undefined })} />
+            </div>
+          )}
+          <label className="flex items-center gap-2 py-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={blockProps?.shadow ?? false}
+              onChange={(e) => setProp({ shadow: e.target.checked || undefined })}
+              className="accent-[var(--app-accent)]"
+            />
+            <span className="text-xs text-[var(--app-fg2)]">Sombra</span>
+          </label>
+        </div>
+      </details>
 
       {/* Move to page buttons */}
       <div>

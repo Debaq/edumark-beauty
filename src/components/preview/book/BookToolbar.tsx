@@ -1,7 +1,7 @@
 import {
   Pencil, PencilOff, ChevronLeft, ChevronRight,
   RotateCcw, ZoomIn, ZoomOut, Maximize2, ArrowLeftRight,
-  Settings,
+  Settings, Undo2, Redo2,
 } from 'lucide-react'
 import { useBookLayoutStore } from '@/store/bookLayout'
 
@@ -28,6 +28,10 @@ export function BookToolbar({
   const layoutConfig = useBookLayoutStore((s) => s.layoutConfig)
   const resetToAuto = useBookLayoutStore((s) => s.resetToAuto)
   const setColumnGap = useBookLayoutStore((s) => s.setColumnGap)
+  const undo = useBookLayoutStore((s) => s.undo)
+  const redo = useBookLayoutStore((s) => s.redo)
+  const canUndo = useBookLayoutStore((s) => s._history.length > 0)
+  const canRedo = useBookLayoutStore((s) => s._future.length > 0)
   const columnGap = layoutConfig?.columnGap ?? 24
   const hasTwoColumns = layoutConfig?.pages.some((p) => p.layout === 'two-columns') ?? false
 
@@ -76,6 +80,28 @@ export function BookToolbar({
           <span className="text-[10px] text-[var(--app-accent)] font-medium uppercase tracking-wider">
             Editando
           </span>
+        )}
+
+        {isEditing && (
+          <>
+            <div className="w-px h-4 bg-[var(--app-border)] mx-0.5" />
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              title="Deshacer (Ctrl+Z)"
+              className={btnClass(!canUndo)}
+            >
+              <Undo2 size={15} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              title="Rehacer (Ctrl+Shift+Z)"
+              className={btnClass(!canRedo)}
+            >
+              <Redo2 size={15} />
+            </button>
+          </>
         )}
 
         {/* Column gap control — visible when editing and any page uses two-columns */}

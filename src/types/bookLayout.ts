@@ -9,6 +9,22 @@ export interface BlockProps {
   order?: number
   /** Text alignment override for this block */
   textAlign?: TextAlign
+  /** Top margin in px */
+  marginTop?: number
+  /** Bottom margin in px */
+  marginBottom?: number
+  /** Background color (hex) */
+  backgroundColor?: string
+  /** Inner padding in px */
+  padding?: number
+  /** Border radius in px */
+  borderRadius?: number
+  /** Border color (hex) */
+  borderColor?: string
+  /** Border width in px */
+  borderWidth?: number
+  /** Drop shadow */
+  shadow?: boolean
 }
 
 export interface PageConfig {
@@ -17,6 +33,8 @@ export interface PageConfig {
   blockIds: string[]
   /** Per-block properties */
   blockProps: Record<string, BlockProps>
+  /** Background color override for this page (hex) */
+  backgroundColor?: string
 }
 
 export interface BookLayoutConfig {
@@ -29,6 +47,8 @@ export interface BookLayoutConfig {
   textAlign?: TextAlign
   /** Whether to show horizontal rules (---) in book mode (default false) */
   showHr?: boolean
+  /** Default background color for all pages (hex) */
+  backgroundColor?: string
 }
 
 export const DEFAULT_BLOCK_PROPS: BlockProps = {}

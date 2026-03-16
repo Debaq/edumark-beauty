@@ -11,9 +11,66 @@ import { codeHighlight } from './code-highlight'
 import { markdownHighlight } from './markdown-highlight'
 import { commentFold } from './comment-fold'
 import { tableFormatter } from './table-formatter'
+import { svgEditWidget, svgEditWidgetTheme } from './svg-edit-widget'
+import { imagePreviewWidget, imagePreviewWidgetTheme } from './image-preview-widget'
+import { imageToWebpBase64 } from '@/lib/imageToBase64'
 import { useDocumentStore } from '@/store/document'
 import { decodeAsync } from 'edumark-js'
 
+
+/** Insert a :::image block with the given data URI at the current cursor position */
+function insertImageBlock(view: EditorView, dataUri: string) {
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  const isEmptyLine = line.text.trim() === '' && pos === line.from
+  const prefix = isEmptyLine ? '' : '\n\n'
+  const id = `fig-${Date.now()}`
+  const block = `${prefix}:::image id="${id}"\nfile: ${dataUri}\ntitle: ""\nalt: ""\n:::\n`
+  view.dispatch({ changes: { from: pos, to: pos, insert: block } })
+  view.focus()
+}
+
+/** Handle image files from drop or paste events */
+async function handleImageFiles(view: EditorView, files: FileList | File[]) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue
+    const dataUri = await imageToWebpBase64(file)
+    insertImageBlock(view, dataUri)
+  }
+}
+
+/** CodeMirror DOM event handlers for drag-drop and paste of images */
+const imageDropPaste = EditorView.domEventHandlers({
+  drop(event, view) {
+    const files = event.dataTransfer?.files
+    if (!files || files.length === 0) return false
+    const hasImage = Array.from(files).some((f) => f.type.startsWith('image/'))
+    if (!hasImage) return false
+    event.preventDefault()
+    // Move cursor to drop position
+    const dropPos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+    if (dropPos != null) {
+      view.dispatch({ selection: { anchor: dropPos } })
+    }
+    handleImageFiles(view, files)
+    return true
+  },
+  paste(event, view) {
+    const items = event.clipboardData?.items
+    if (!items) return false
+    const imageFiles: File[] = []
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) imageFiles.push(file)
+      }
+    }
+    if (imageFiles.length === 0) return false
+    event.preventDefault()
+    handleImageFiles(view, imageFiles)
+    return true
+  },
+})
 
 export interface EdmEditorHandle {
   getScroller: () => HTMLElement | null
@@ -80,6 +137,11 @@ export const EdmEditor = forwardRef<EdmEditorHandle>(function EdmEditor(_, ref) 
         codeHighlight,
         markdownHighlight,
         tableFormatter,
+        svgEditWidget,
+        svgEditWidgetTheme,
+        imagePreviewWidget,
+        imagePreviewWidgetTheme,
+        imageDropPaste,
         EditorView.lineWrapping,
         EditorView.theme({
           '&': { height: '100%' },

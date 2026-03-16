@@ -11,6 +11,11 @@ interface UIStore {
   scrollSync: boolean
   toasts: Toast[]
 
+  /** SVG editor state */
+  svgEditorActive: boolean
+  svgEditorDiagramId: string | null
+  svgEditorOriginalSvg: string | null
+
   setViewMode: (mode: ViewMode) => void
   setExportModalOpen: (open: boolean) => void
   setConfigPanelOpen: (open: boolean) => void
@@ -19,6 +24,8 @@ interface UIStore {
   toggleScrollSync: () => void
   addToast: (message: string, type?: Toast['type']) => void
   removeToast: (id: string) => void
+  openSvgEditor: (diagramId: string, originalSvg: string) => void
+  closeSvgEditor: () => void
 }
 
 export interface Toast {
@@ -37,6 +44,9 @@ export const useUIStore = create<UIStore>((set) => ({
   skillsModalOpen: false,
   scrollSync: true,
   toasts: [],
+  svgEditorActive: false,
+  svgEditorDiagramId: null,
+  svgEditorOriginalSvg: null,
 
   setViewMode: (mode) => set({ viewMode: mode }),
   setExportModalOpen: (open) => set({ exportModalOpen: open }),
@@ -62,4 +72,10 @@ export const useUIStore = create<UIStore>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
+
+  openSvgEditor: (diagramId, originalSvg) =>
+    set({ svgEditorActive: true, svgEditorDiagramId: diagramId, svgEditorOriginalSvg: originalSvg }),
+
+  closeSvgEditor: () =>
+    set({ svgEditorActive: false, svgEditorDiagramId: null, svgEditorOriginalSvg: null }),
 }))
